@@ -53,6 +53,48 @@ This command deploys the VM runtime over SSH and packs the Chrome extension into
 
 If this step fails, use [Troubleshooting](troubleshooting.md) to test the config, DNS, SSH, VM services, and extension pack separately.
 
+## Choosing Singularity Ports
+
+The scanner port range and the Singularity HTTP ports are different controls.
+
+Scanner ports are local browser targets. They tell the extension where to look for MCP servers on the operator machine, for example `8000-9000`.
+
+Singularity HTTP ports are public VM listener ports used by the DNS-rebinding runtime. They must include the launcher port and the MCP ports you intend to prove through rebinding. The default is intentionally small, usually `8080-8089`.
+
+Do not expose every TCP port through Singularity by default. A wide range creates too many public listeners, makes cloud inbound rules harder to review, increases noise during demos, and expands the VM surface area beyond the proof you are trying to run. Keep the lab focused on the launcher and the MCP services selected for the assessment.
+
+If your scan finds an MCP server outside the default window, add that port before deploying:
+
+```json
+{
+  "singularity": {
+    "launcher_port": 8080,
+    "http_ports": [8080, 8081, 8082, 8083, 8091, 8123]
+  }
+}
+```
+
+The VM inbound rules must match the same ports. If `http_ports` includes `8123`, the VM firewall or cloud security group must allow TCP `8123` from the operator network. MCP Binder does not create cloud firewall rules because each VM provider handles network policy differently.
+
+After changing `singularity.http_ports`, rerun the deployment:
+
+```sh
+node scripts/framework-cli.js bootstrap \
+  --config deployment.framework-config.json \
+  --out dist/mcp-binder-lab \
+  --deploy \
+  --clear-existing
+```
+
+Common symptoms of a port mismatch:
+
+- the scanner finds an MCP server, but the DNS rebind attack never reaches it;
+- the activity panel keeps retrying a generated rebind hostname;
+- the dashboard gets a victim session, but no MCP initialization completes;
+- direct checks to the VM public IP work on `8080`, but fail on the selected MCP port.
+
+In that case, check both `singularity.http_ports` and the VM inbound rules before debugging the MCP target.
+
 ## Dashboard Token
 
 The dashboard token is stored at `dist/mcp-binder-dashboard-token` unless the config overrides it. The token protects the dashboard and operator console. Anyone with dashboard access but no token cannot queue MCP commands or inspect captured sessions through the operator API.

@@ -2,7 +2,9 @@
 
 # MCP Binder
 
-MCP Binder turns MCP DNS-rebinding research into a repeatable lab workflow. It gives researchers a fast path from a clean VM and delegated DNS zone to a working browser-driven MCP attack lab, without rebuilding the infrastructure for every target.
+MCP Binder turns MCP DNS-rebinding research into a repeatable lab workflow. It gives security practitioners a fast path from a clean VM and delegated DNS zone to a working browser-driven MCP attack lab, without rebuilding infrastructure for every target.
+
+Use it to find exposed local MCP servers, reproduce DNS-rebinding impact, validate whether a fix actually changes browser-reachable behavior, and generate a controlled operator workflow for internal assessments, product security reviews, and disclosure evidence.
 
 ![MCP Binder demo](docs/assets/demo.gif)
 
@@ -12,7 +14,7 @@ Local MCP servers often bind to loopback and assume that `127.0.0.1` is a trust 
 
 This framework came out of research that identified more than 50 DNS-rebinding vulnerabilities across well-known MCP servers. Public examples reported by our security team include [GitLab MCP DNS rebinding](https://github.com/zereight/gitlab-mcp/security/advisories/GHSA-vmp7-252j-cwp7) and [DBHub DNS rebinding](https://github.com/bytebase/dbhub/security/advisories/GHSA-fm8p-53ww-hf6w). There are many others.
 
-MCP Binder exists so researchers can reproduce this class of vulnerability with flexible infrastructure, clear session tracking, and a workflow that can move between different MCP servers, DNS providers, and VM providers.
+MCP Binder exists so researchers and defenders can reproduce this class of vulnerability with flexible infrastructure, clear session tracking, and a workflow that can move between different MCP servers, DNS providers, and VM providers. On the defensive side, it gives teams a concrete way to test Origin and Host validation, confirm whether browser-based access to local MCP surfaces is blocked, and regression-test hardened MCP deployments before shipping.
 
 ## Framework Modules
 
@@ -88,6 +90,8 @@ node scripts/framework-cli.js bootstrap \
 The dashboard token is stored at `dist/mcp-binder-dashboard-token` unless you override it in the config. The token gates the dashboard and operator console so another user who finds the dashboard URL cannot queue MCP commands or read captured sessions.
 
 If the lab build fails, use [Troubleshooting](docs/troubleshooting.md) to test DNS, SSH, VM services, dashboard access, and extension packing one module at a time.
+
+DNS rebinding only works for ports exposed by the deployed Singularity runtime and allowed by the VM inbound rules. If the selected MCP runs outside the default rebinding port window, update `singularity.http_ports` before deploying. See [Choosing Singularity Ports](docs/deployment.md#choosing-singularity-ports).
 
 Load the extension:
 

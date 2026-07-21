@@ -1034,7 +1034,9 @@ function runOrDescribeAttackerScript(config, options) {
       dryRun: true,
       script,
       args,
-      commandLine
+      commandLine,
+      target: sshTarget(config),
+      summary: attackerCommandSummary(config, options.action, options.extraArgs)
     };
   }
 
@@ -1046,7 +1048,34 @@ function runOrDescribeAttackerScript(config, options) {
     dryRun: false,
     script,
     args,
-    commandLine
+    commandLine,
+    target: sshTarget(config),
+    summary: attackerCommandSummary(config, options.action, options.extraArgs)
+  };
+}
+
+function sshTarget(config) {
+  return `${config.attacker.sshUser}@${config.attacker.sshHost}`;
+}
+
+function attackerCommandSummary(config, action, extraArgs = []) {
+  if (action === "deploy") {
+    return {
+      action: "Install MCP Binder VM runtime",
+      target: sshTarget(config),
+      dashboard: config.dashboard.baseUrl,
+      rebindDomain: config.dns.rebindDomain,
+      ports: formatPorts(config.singularity.httpPorts),
+      tokenFile: config.dashboard.auth.tokenFile || "dist/mcp-binder-dashboard-token",
+      clearExisting: extraArgs.includes("--clear-existing")
+    };
+  }
+
+  return {
+    action: "Remove MCP Binder VM runtime",
+    target: sshTarget(config),
+    keepToken: extraArgs.includes("--keep-token"),
+    purgeBackups: extraArgs.includes("--purge-backups")
   };
 }
 
@@ -1511,14 +1540,27 @@ function formatAttackerCommand(result) {
   const title = result.dryRun
     ? `${ICON.info} MCP Binder ${result.command} preview`
     : `${ICON.ok} MCP Binder ${result.command} complete`;
-  return [
+  const summary = result.summary || {};
+  const lines = [
     title,
     "",
-    `Provider: ${result.provider}`,
-    `Script: ${result.script}`,
-    result.commandLine ? "Command" : "",
-    result.commandLine ? `  ${result.commandLine}` : ""
-  ].filter(Boolean).join("\n").replace(/\n+$/, "\n");
+    "Provider: SSH",
+    summary.action ? `Action: ${summary.action}` : "",
+    summary.target ? `Target: ${summary.target}` : result.target ? `Target: ${result.target}` : "",
+    summary.dashboard ? `Dashboard: ${summary.dashboard}` : "",
+    summary.rebindDomain ? `Rebind domain: ${summary.rebindDomain}` : "",
+    summary.ports ? `Rebind ports: ${summary.ports}` : "",
+    summary.tokenFile ? `${ICON.key} Token file: ${summary.tokenFile}` : "",
+    summary.clearExisting ? "Existing runtime: moved to backup before reinstall" : "",
+    summary.keepToken ? "Token: preserved on VM" : "",
+    summary.purgeBackups ? "Backups: removed" : ""
+  ].filter(Boolean);
+
+  if (result.dryRun) {
+    lines.push("", "No changes made. Add --execute to run this operation.");
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 function formatBootstrap(result) {

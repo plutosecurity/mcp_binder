@@ -157,4 +157,6 @@ node scripts/framework-cli.js vm clean \
   --execute
 ```
 
-Add `--purge-backups` when using the lower-level cleanup script and you also want to remove `/opt/mcp-binder-backups`. Add `--keep-token` when you want to preserve `/etc/mcp_binder/dashboard-token` on the VM.
+Add `--purge-backups` when you also want to remove `/opt/mcp-binder-backups`. Add `--keep-token` when you want to preserve `/etc/mcp_binder/dashboard-token` on the VM.
+
+The CLI calls two lower-level scripts during cleanup. `clean-attacker-ssh.sh` runs on your machine and handles SSH, SCP, and remote staging. `clean-attacker-vm.sh` runs on the VM with `sudo` and removes systemd units plus MCP Binder runtime files. Normal users should call `framework-cli.js vm clean`; the split exists so other transport providers can reuse the same VM-local cleanup script later.

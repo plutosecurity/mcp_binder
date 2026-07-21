@@ -108,7 +108,20 @@ Load the extension:
 chrome://extensions -> Developer mode -> Load unpacked -> dist/mcp-binder-lab/extension
 ```
 
-For the full setup flow, read [docs/deployment.md](docs/deployment.md). For configuration and provider notes, read [docs/configuration.md](docs/configuration.md).
+After the extension is loaded, follow the live workflow in [docs/operation.md](docs/operation.md).
+
+For the full setup flow, read [docs/deployment.md](docs/deployment.md). For configuration and provider notes, read [docs/configuration.md](docs/configuration.md). For command details, read [docs/cli.md](docs/cli.md).
+
+## Documentation
+
+| Page | Use It For |
+| --- | --- |
+| [Deployment](docs/deployment.md) | First lab setup, SSH deployment, dashboard token, extension loading, cleanup. |
+| [Configuration](docs/configuration.md) | Framework config fields, DNS records, Route53 helper, network rules. |
+| [Operation](docs/operation.md) | Scanner behavior, DNS rebinding attack flow, dashboard, and operator console. |
+| [CLI Reference](docs/cli.md) | Supported commands and common options. |
+| [Troubleshooting](docs/troubleshooting.md) | Test config, DNS, SSH, VM services, dashboard, and extension packing one module at a time. |
+| [Security Policy](SECURITY.md) | How to report vulnerabilities in MCP Binder itself. |
 
 ## License
 

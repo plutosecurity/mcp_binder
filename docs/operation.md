@@ -1,83 +1,163 @@
 # Operation
 
-This page describes the live workflow after the lab is deployed and the packed extension is loaded.
+This page covers the live workflow after the VM is deployed and the packed Chrome extension is loaded.
 
-## Scanner
-
-The scanner runs from the Chrome extension. It discovers MCP-like services reachable from the browser origin granted to the extension.
-
-Typical local target:
+The operating loop is:
 
 ```text
-target: localtest.me
-ports: 8000-9000
+Scan -> Select MCP -> DNS Rebind -> Open Dashboard -> Operate
 ```
 
-Chrome Site access still controls what the extension can fetch. If a target is blocked, the dashboard shows the active allowed origins and asks you to grant Site access or repack with explicit host permissions.
+## Before You Start
 
-## DNS Rebinding Attack Flow
+Confirm these pieces are ready:
 
-1. Scan for MCP services.
-2. Select an MCP server from the findings list.
-3. Click **DNS Rebind**.
-4. The offscreen bridge starts the attack through the configured Singularity provider.
-5. Open the operator console.
-6. Watch captured sessions and bridge telemetry.
-7. Queue `tools/list`, `tools/call`, or raw JSON-RPC against the captured MCP session.
+| Check | Expected |
+| --- | --- |
+| Extension | Loaded from `dist/mcp-binder-lab/extension` or another packed output directory. |
+| Dashboard | `http://<dashboard-domain>:8090/healthz` returns `200 OK`. |
+| Token | `dist/mcp-binder-dashboard-token` exists locally. |
+| Rebinding ports | The selected MCP port is included in `singularity.http_ports` and allowed by the VM inbound rules. |
 
-The extension supports one active DNS-rebind bridge at a time. If a bridge is already running, starting another one asks whether to stop the current bridge and start the selected MCP server.
+If one of these fails, use [Troubleshooting](troubleshooting.md) before debugging the browser flow.
 
-## Dashboard
+## 1. Run The Scanner
 
-The dashboard stores:
+Open the extension dashboard from Chrome.
 
-- victims,
-- captured MCP sessions,
-- telemetry events,
-- queued operator tasks,
-- task results,
-- evidence exports.
+Use `localtest.me` for local MCP scanning. It resolves to loopback while still exercising a hostname-based browser request path.
 
-Operator endpoints require the dashboard bearer token when `MCP_BINDER_DASHBOARD_TOKEN` is set.
-
-## Operator Console
-
-The operator console is part of the packed extension:
+Typical scan:
 
 ```text
-ui/operator.html
+Target: localtest.me
+Ports: 8000-9000
 ```
 
-The console can:
+Click **Start Scan**. The Activity panel tracks port scan progress, MCP probes, and policy blocks.
 
-- list victims and captured MCP sessions,
-- queue `tools/list`,
-- queue `tools/call`,
-- queue raw JSON-RPC,
-- show task results,
-- save repeated requests,
-- export evidence,
-- clear live dashboard state.
+Common scan outcomes:
 
-Only use `tools/call` in an authorized demo. Passive scanning never calls tools.
+| UI State | Meaning |
+| --- | --- |
+| `Scan complete` | The scan finished across the requested port range. |
+| `MCP detected` | The service answered like an MCP server, but no rebinding proof has run yet. |
+| `Vulnerable` | The scanner found browser-reachable MCP behavior that should be validated with a DNS rebinding attack. |
+| `Scan blocked` | Chrome Site access does not allow the extension to use that scan origin. |
 
-## Evidence
+The scanner and the DNS rebinding attack use different browser origins. The scanner discovers candidates through an allowed scan origin such as `localtest.me`. The rebinding attack uses the packed rebinding domain, then relies on DNS changing that hostname to the local MCP service. That is the point of the proof: the extension only needs permission for the rebinding domain, not for the final loopback address.
 
-Dashboard export returns normalized evidence shaped by:
+If discovery is blocked, use an allowed scan origin or pack the extension with the scan host permission you want to test. Do not scan direct `127.0.0.1` unless you are intentionally testing extension permissions rather than DNS rebinding behavior.
+
+![MCP Binder scan results](assets/operation-scan.png)
+
+## 2. Launch DNS Rebinding
+
+Click **DNS Rebind** on the MCP finding you want to prove.
+
+The extension starts the attack through the packed Singularity configuration. The browser page does not open a normal tab for the proof. The bridge runs through the extension offscreen document so Chrome tab-level protections do not change the behavior being tested.
+
+During the attack:
+
+- the Activity panel shows retry and bridge state;
+- the selected finding remains visible;
+- the dashboard receives a victim session when the rebound payload loads;
+- the selected MCP becomes controllable only after MCP initialization succeeds.
+
+MCP Binder supports one active DNS rebind bridge at a time. If a bridge is already running, starting a new one asks whether to stop the current bridge and start the selected MCP server.
+
+When the proof succeeds, the finding gets **Open Dashboard**. Use that button to jump to the captured MCP session.
+
+![MCP Binder DNS rebinding launch](assets/operation-rebind.gif)
+
+## 3. Use The Dashboard
+
+Open the dashboard:
 
 ```text
-schemas/evidence.schema.json
+http://<dashboard-domain>:8090
 ```
 
-Expected attack outcomes include:
+Enter the token from:
 
-- `rebind_confirmed`
-- `blocked_by_host_validation`
-- `blocked_by_lna`
-- `blocked_by_cors`
-- `dns_not_rebound`
-- `mcp_not_detected`
-- `inconclusive`
-- `stopped`
+```sh
+cat dist/mcp-binder-dashboard-token
+```
 
-Evidence exports can contain sensitive hostnames, target ports, campaign IDs, server metadata, MCP session IDs, and tool output. Treat exports as private research artifacts unless redacted.
+The dashboard shows:
+
+| Area | Purpose |
+| --- | --- |
+| Victims | Browser sessions created by rebound payloads. |
+| MCPs | Captured MCP sessions tied to the selected victim. |
+| Raw telemetry | Session metadata, source URL, target path, bridge status, and telemetry. |
+| Operator controls | Token-protected controls such as token storage and clear live state. |
+
+Use the captured MCP session link or the extension **Open Dashboard** button to enter the operation view at `/ops`.
+
+![MCP Binder dashboard](assets/operation-dashboard.png)
+
+## 4. Operate The Captured MCP
+
+The operation view is:
+
+```text
+http://<dashboard-domain>:8090/ops
+```
+
+If you opened it from the extension, the URL includes the captured session ID.
+
+The normal control flow:
+
+1. Select the captured session.
+2. Click **Queue tools/list** or choose **Enumerate MCP tools**.
+3. Wait for the victim browser to claim the queued command.
+4. Review discovered tools.
+5. Select a tool or quick action.
+6. Fill the JSON arguments.
+7. Click **Run operation**.
+8. Review the result.
+
+The operator console supports:
+
+| Control | Use |
+| --- | --- |
+| Operation selector | Choose `tools/list`, a discovered `tools/call`, or a raw JSON-RPC body. |
+| Arguments editor | Provide JSON arguments for the selected operation. |
+| Saved Requests | Store repeatable requests for the current MCP workflow. |
+| Quick Actions | Run generated operations based on `tools/list`. |
+| Results | Inspect queued, claimed, completed, and failed MCP tasks. |
+| Evidence Summary | Summarize the captured session, discovered tools, and command results. |
+
+Only run `tools/call` against systems you are authorized to test. Passive scanning does not call MCP tools.
+
+![MCP Binder operation console](assets/operation-ops.gif)
+
+## 5. Read Attack Outcomes
+
+Common proof outcomes:
+
+| Outcome | Meaning |
+| --- | --- |
+| `rebind_confirmed` | The browser reached the target MCP through the rebound hostname and MCP initialization succeeded. |
+| `blocked_by_host_validation` | The MCP service rejected the rebound host or origin. |
+| `blocked_by_lna` | Browser local-network controls blocked the request path. |
+| `blocked_by_cors` | Browser CORS policy blocked the request path. |
+| `dns_not_rebound` | DNS did not transition to the local target during the proof window. |
+| `mcp_not_detected` | The target responded, but not as an MCP server. |
+| `inconclusive` | The bridge reached something, but the response was not enough to prove the MCP state. |
+| `stopped` | The operator stopped the active bridge. |
+
+Use the Activity panel and dashboard telemetry together. The extension shows browser-side progress. The dashboard shows victim sessions, command polling, and MCP result state.
+
+## 6. Fast Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Scan is blocked before it starts | The scan origin is not allowed by Chrome Site access or `extension.host_permissions`. Use an allowed discovery hostname or repack the extension. See [Configuration](configuration.md). |
+| Finding appears, but rebinding never reaches the MCP | `singularity.http_ports` and VM inbound rules. See [Choosing Singularity Ports](deployment.md#choosing-singularity-ports). |
+| Dashboard opens, but operator API fails | Dashboard token. See [Dashboard Token](deployment.md#dashboard-token). |
+| Victim session appears, but no MCP initializes | Target path, transport mode, selected port, and raw dashboard telemetry. |
+| Generated rebound hostnames fail in console logs | Expected until DNS records and VM services are ready. If runtime checks pass, inspect the Activity panel details. |
+
+For full recovery steps, use [Troubleshooting](troubleshooting.md).

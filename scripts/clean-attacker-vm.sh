@@ -24,6 +24,8 @@ USAGE
 PURGE_BACKUPS="false"
 KEEP_TOKEN="false"
 YES="false"
+REMOVED_COUNT=0
+TOKEN_KEPT="false"
 
 APP_ROOT="/opt/mcp_binder"
 DASHBOARD_ROOT="/var/lib/mcp_binder"
@@ -33,6 +35,14 @@ ENV_DIR="/etc/mcp_binder"
 DASHBOARD_TOKEN_FILE="$ENV_DIR/dashboard-token"
 BACKUP_ROOT="/opt/mcp-binder-backups"
 SINGULARITY_BIN="/usr/local/bin/singularity-server"
+
+done_msg() {
+  printf '✓ %s\n' "$1"
+}
+
+stage() {
+  printf '• [%s/4] %s\n' "$1" "$2"
+}
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -79,7 +89,7 @@ remove_path() {
   local path="$1"
   if [ -e "$path" ] || [ -L "$path" ]; then
     rm -rf "$path"
-    echo "removed=$path"
+    REMOVED_COUNT=$((REMOVED_COUNT + 1))
   fi
 }
 
@@ -93,32 +103,42 @@ clean_env_dir() {
     mkdir -p "$ENV_DIR"
     mv "$tmp_token" "$DASHBOARD_TOKEN_FILE"
     chmod 0600 "$DASHBOARD_TOKEN_FILE"
-    echo "kept=$DASHBOARD_TOKEN_FILE"
+    TOKEN_KEPT="true"
   else
     remove_path "$ENV_DIR"
   fi
 }
 
 main() {
+  stage 1 "Stopping services"
   stop_services
 
+  stage 2 "Removing runtime files"
   remove_path /etc/systemd/system/singularity.service
   remove_path /etc/systemd/system/mcp-binder-dashboard.service
-  systemctl daemon-reload
-  systemctl reset-failed singularity.service mcp-binder-dashboard.service 2>/dev/null || true
 
   remove_path "$APP_ROOT"
   remove_path "$DASHBOARD_ROOT"
   remove_path "$PAYLOAD_BASE"
   remove_path "$SINGULARITY_ROOT"
   remove_path "$SINGULARITY_BIN"
+
+  stage 3 "Cleaning configuration"
   clean_env_dir
 
   if [ "$PURGE_BACKUPS" = "true" ]; then
     remove_path "$BACKUP_ROOT"
   fi
 
-  echo "MCP Binder attacker VM runtime cleaned"
+  stage 4 "Reloading systemd"
+  systemctl daemon-reload
+  systemctl reset-failed singularity.service mcp-binder-dashboard.service 2>/dev/null || true
+
+  done_msg "MCP Binder VM runtime cleaned"
+  echo "  Removed paths: $REMOVED_COUNT"
+  if [ "$TOKEN_KEPT" = "true" ]; then
+    echo "  Token preserved: $DASHBOARD_TOKEN_FILE"
+  fi
 }
 
 main

@@ -23,6 +23,14 @@ Options:
 USAGE
 }
 
+done_msg() {
+  printf '✓ %s\n' "$1"
+}
+
+stage() {
+  printf '• [%s/3] %s\n' "$1" "$2"
+}
+
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "missing required command: $1" >&2
@@ -133,7 +141,7 @@ if [ -n "$USER_NAME" ]; then
 fi
 
 SSH_ARGS=(-p "$SSH_PORT")
-SCP_ARGS=(-P "$SSH_PORT")
+SCP_ARGS=(-q -P "$SSH_PORT")
 if [ -n "$IDENTITY_FILE" ]; then
   SSH_ARGS+=(-i "$IDENTITY_FILE")
   SCP_ARGS+=(-i "$IDENTITY_FILE")
@@ -141,9 +149,13 @@ fi
 
 REMOTE_SCRIPT="$REMOTE_DIR/clean-attacker-vm.sh"
 
+stage 1 "Preparing VM cleanup workspace"
 ssh "${SSH_ARGS[@]}" "$SSH_TARGET" "mkdir -p $(shell_quote "$REMOTE_DIR")"
+stage 2 "Uploading cleanup runtime"
 scp "${SCP_ARGS[@]}" scripts/clean-attacker-vm.sh "$SSH_TARGET:$REMOTE_SCRIPT"
 
+stage 3 "Running VM cleanup"
 ssh "${SSH_ARGS[@]}" "$SSH_TARGET" "chmod 0755 $(shell_quote "$REMOTE_SCRIPT") && sudo bash $(shell_quote "$REMOTE_SCRIPT") --yes $(flag_arg "$PURGE_BACKUPS" "--purge-backups") $(flag_arg "$KEEP_TOKEN" "--keep-token"); rm -rf $(shell_quote "$REMOTE_DIR")"
 
-echo "cleaned_host=$HOST"
+done_msg "VM runtime cleaned"
+echo "  VM: $SSH_TARGET"

@@ -137,6 +137,10 @@ for (const expected of [
   "scp",
   "clean-attacker-vm.sh",
   "validate_remote_path",
+  "stage 1 \"Preparing VM cleanup workspace\"",
+  "stage 2 \"Uploading cleanup runtime\"",
+  "stage 3 \"Running VM cleanup\"",
+  "done_msg \"VM runtime cleaned\"",
   "sudo bash",
   "--yes"
 ]) {
@@ -178,6 +182,11 @@ const cleanHelp = execFileSync("bash", [cleanPath, "--help"], { encoding: "utf8"
 assert(cleanHelp.includes("Usage:"), "clean help renders usage");
 assert(cleanHelp.includes("--purge-backups"), "clean help documents backup purge");
 assert(cleanHelp.includes("--keep-token"), "clean help documents token preservation");
+assert(clean.includes("stage 1 \"Stopping services\""), "clean script prints service stop stage");
+assert(clean.includes("stage 2 \"Removing runtime files\""), "clean script prints runtime removal stage");
+assert(clean.includes("stage 3 \"Cleaning configuration\""), "clean script prints config cleanup stage");
+assert(clean.includes("stage 4 \"Reloading systemd\""), "clean script prints systemd reload stage");
+assert(clean.includes("done_msg \"MCP Binder VM runtime cleaned\""), "clean script prints concise completion message");
 
 const sshDeployHelp = execFileSync("bash", [sshDeployPath, "--help"], { encoding: "utf8" });
 assert(sshDeployHelp.includes("Usage:"), "ssh deploy help renders usage");

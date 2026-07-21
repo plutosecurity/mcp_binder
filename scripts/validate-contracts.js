@@ -38,9 +38,13 @@ const generic = readJson("examples/framework/generic.framework-config.json");
 const publicTemplate = readJson("framework-config.template.json");
 const minimal = readJson("examples/framework/minimal.framework-config.json");
 const route53Example = readJson("examples/framework/route53-example.framework-config.json");
-const route53 = normalizeFrameworkFixture(route53Example);
-const tapo = readJson("examples/framework/tapo-root-target.json");
-const streamable = readJson("examples/framework/streamable-mcp-target.json");
+  const route53 = normalizeFrameworkFixture(route53Example);
+  const tapo = readJson("examples/framework/tapo-root-target.json");
+  const streamable = readJson("examples/framework/streamable-mcp-target.json");
+
+assert(fs.existsSync("SECURITY.md"), "security policy exists");
+assert(fs.existsSync("CONTRIBUTING.md"), "contributing guide exists");
+assert(fs.existsSync("docs/cli.md"), "CLI reference exists");
 
 validateFrameworkConfig(generic, "generic fixture");
 validateFrameworkConfig(publicTemplate, "public framework template");
@@ -352,12 +356,25 @@ function validateFrameworkCli() {
   assertEqual(attackerDeployDryRun.dryRun, true, "attacker deploy defaults to dry-run");
   assert(attackerDeployDryRun.commandLine.includes("scripts/deploy-attacker-ssh.sh"), "attacker deploy dry-run uses ssh deploy script");
   assert(attackerDeployDryRun.commandLine.includes("--identity-file ~/.ssh/mcp-binder-example.pem"), "attacker deploy includes configured ssh key path");
+  const vmDeployText = runTextCli(["vm", "deploy", "--config", "examples/framework/route53-example.framework-config.json"]);
+  assert(vmDeployText.includes("MCP Binder vm deploy preview"), "vm deploy preview has a concise title");
+  assert(vmDeployText.includes("Action: Install MCP Binder VM runtime"), "vm deploy preview explains the action");
+  assert(vmDeployText.includes("Target: ubuntu@203.0.113.10"), "vm deploy preview shows the SSH target");
+  assert(vmDeployText.includes("No changes made. Add --execute to run this operation."), "vm deploy preview states dry-run behavior");
+  assert(!vmDeployText.includes("Script:"), "vm deploy preview hides low-level script names");
+  assert(!vmDeployText.includes("Command"), "vm deploy preview hides raw shell command");
 
   const attackerCleanDryRun = runCli(["attacker", "clean", "--config", "examples/framework/route53-example.framework-config.json"]);
   assert(attackerCleanDryRun.ok, "framework CLI attacker clean dry-run returns ok");
   assertEqual(attackerCleanDryRun.dryRun, true, "attacker clean defaults to dry-run");
   assert(attackerCleanDryRun.commandLine.includes("scripts/clean-attacker-ssh.sh"), "attacker clean dry-run uses ssh clean script");
   assert(attackerCleanDryRun.commandLine.includes("--yes"), "attacker clean includes required yes flag");
+  const vmCleanText = runTextCli(["vm", "clean", "--config", "examples/framework/route53-example.framework-config.json"]);
+  assert(vmCleanText.includes("MCP Binder vm clean preview"), "vm clean preview has a concise title");
+  assert(vmCleanText.includes("Action: Remove MCP Binder VM runtime"), "vm clean preview explains the action");
+  assert(vmCleanText.includes("Target: ubuntu@203.0.113.10"), "vm clean preview shows the SSH target");
+  assert(!vmCleanText.includes("Script:"), "vm clean preview hides low-level script names");
+  assert(!vmCleanText.includes("Command"), "vm clean preview hides raw shell command");
 
   const attackerVerifyOutput = runCli(["attacker", "verify", "--config", "examples/framework/route53-example.framework-config.json", "--offline"]);
   assert(attackerVerifyOutput.ok, "framework CLI attacker verify returns ok");
@@ -378,6 +395,14 @@ function validateFrameworkCli() {
   assert(!readme.includes("examples/framework/generic.framework-config.json"), "README does not use examples as the production config source");
   assert(!fs.readFileSync("framework-config.template.json", "utf8").toLowerCase().includes("attacker"), "public framework template avoids attacker wording");
   assert(readme.includes("dist/mcp-binder-dashboard-token"), "README documents the dashboard token path");
+  assert(readme.includes("docs/cli.md"), "README links the CLI reference");
+  assert(readme.includes("SECURITY.md"), "README links the security policy");
+  const cliDoc = fs.readFileSync("docs/cli.md", "utf8");
+  assert(cliDoc.includes("vm clean"), "CLI reference documents VM cleanup");
+  assert(cliDoc.includes("--json"), "CLI reference documents JSON output");
+  assert(cliDoc.includes("Compatibility Aliases"), "CLI reference documents legacy aliases");
+  const securityDoc = fs.readFileSync("SECURITY.md", "utf8");
+  assert(securityDoc.includes("GitHub Security Advisories"), "security policy points to private advisory reporting");
   assert(readme.includes("dist/mcp-binder-lab"), "README uses lab-oriented output naming");
   assert(readme.includes("GHSA-vmp7-252j-cwp7"), "README links the GitLab MCP DNS rebinding example");
   assert(readme.includes("GHSA-fm8p-53ww-hf6w"), "README links the DBHub DNS rebinding example");

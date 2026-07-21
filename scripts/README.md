@@ -8,10 +8,10 @@ Use `scripts/framework-cli.js` as the supported operator entry point.
 node scripts/framework-cli.js validate-config deployment.framework-config.json
 node scripts/framework-cli.js preflight deployment.framework-config.json --offline
 node scripts/framework-cli.js dns verify --config deployment.framework-config.json --stage records
-node scripts/framework-cli.js attacker deploy --config deployment.framework-config.json --execute --clear-existing
-node scripts/framework-cli.js attacker verify --config deployment.framework-config.json
+node scripts/framework-cli.js vm deploy --config deployment.framework-config.json --execute --clear-existing
+node scripts/framework-cli.js vm verify --config deployment.framework-config.json
 node scripts/framework-cli.js extension pack --config deployment.framework-config.json --out dist/mcp_binder
-node scripts/framework-cli.js attacker clean --config deployment.framework-config.json --execute
+node scripts/framework-cli.js vm clean --config deployment.framework-config.json --execute
 ```
 
 Output is human-readable by default. Add `--json` to any `framework-cli.js`
@@ -29,6 +29,15 @@ These scripts are implementation details. Use them directly only when debugging 
 | `scripts/clean-attacker-vm.sh` | VM-local cleanup script for MCP Binder runtime files and services. |
 | `scripts/dns-route53-records.sh` | Optional Route53 helper that writes zone-file and change-batch records. |
 | `scripts/mock-mcp-lab.js` | Local MCP target lab for scanner and attack regression testing. |
+
+The SSH wrappers and VM-local scripts are intentionally separate:
+
+| Layer | Script | Why It Exists |
+| --- | --- | --- |
+| Local transport | `deploy-attacker-ssh.sh`, `clean-attacker-ssh.sh` | Runs on your machine, handles SSH, SCP, token files, and remote staging. |
+| VM runtime | `setup-attacker-vm.sh`, `clean-attacker-vm.sh` | Runs on the VM with `sudo`, changes systemd units and runtime directories. |
+
+Normal users should use `scripts/framework-cli.js vm ...`. The lower-level scripts stay separate so the same VM-local installer and cleaner can be reused by different transport providers later.
 
 ## Provider Boundary
 

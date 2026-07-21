@@ -132,7 +132,3 @@ node scripts/framework-cli.js extension pack \
 ```
 
 Use this when the VM and DNS already exist and you only need a deployment-specific extension build.
-
-## Compatibility Aliases
-
-`attacker deploy`, `attacker verify`, and `attacker clean` still exist for older automation. New docs and examples use `vm`.

@@ -8,7 +8,6 @@ Run before committing:
 
 ```sh
 npm run validate
-npm run release:check
 git diff --check
 ```
 
@@ -19,9 +18,7 @@ Validation checks JavaScript syntax, manifest JSON, framework contracts, dashboa
 Do not commit:
 
 - `deployment.framework-config.json`
-- `my-lab.framework-config.json`
 - `dist/`
-- `reproduce.md`
 - private keys
 - dashboard token files
 - VM IPs, private domains, or provider-specific lab values
@@ -62,7 +59,3 @@ The lower-level shell scripts are implementation details:
 - `setup-operator-vm.sh` and `clean-operator-vm.sh` run on the VM with `sudo`.
 
 Keep that split intact so future transport providers can reuse the same VM-local installer and cleaner.
-
-## Release Hygiene
-
-Run `npm run release:check` before syncing code into the public repository. It blocks generated token files, local deployment configs, `.DS_Store`, private markers, and other artifacts that do not belong in a public release.

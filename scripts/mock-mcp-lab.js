@@ -184,9 +184,9 @@ function strictOrigin(req, res, body) {
     return notFound(res);
   }
 
-  if (req.headers.origin === "https://attacker.example") {
+  if (req.headers.origin === "https://researcher.example") {
     return json(res, 403, {
-      error: "blocked attacker origin"
+      error: "blocked forged origin"
     });
   }
 

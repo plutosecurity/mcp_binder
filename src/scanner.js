@@ -10,8 +10,8 @@ const MCP_ENDPOINT_PATHS = ["/", "/mcp", "/sse", "/messages"];
 const ROOT_FAILED_ENDPOINT_PATHS = ["/mcp", "/sse"];
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 const MCP_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const ATTACKER_ORIGIN = "https://attacker.example";
-const ATTACKER_HOST = "attacker.example";
+const FORGED_ORIGIN = "https://operator.example";
+const FORGED_HOST = "operator.example";
 const STREAM_SNIPPET_TIMEOUT_MS = 1600;
 const MAX_BODY_SNIPPET_BYTES = 32768;
 const SCAN_HOST_PERMISSIONS = [
@@ -828,8 +828,8 @@ async function testHeaderValidation(result, timeoutMs, scanSignal) {
 
   return {
     tested: endpointTests.length > 0,
-    attackerOrigin: ATTACKER_ORIGIN,
-    attackerHost: ATTACKER_HOST,
+    forgedOrigin: FORGED_ORIGIN,
+    forgedHost: FORGED_HOST,
     result: strongest.result,
     evidence: strongest.evidence,
     endpointTests,
@@ -848,11 +848,11 @@ async function requestWithForgedHeaders(url, mode, timeoutMs, scanSignal) {
   };
 
   if (mode === "combined" || mode === "origin_only") {
-    headers.origin = ATTACKER_ORIGIN;
+    headers.origin = FORGED_ORIGIN;
   }
 
   if (mode === "combined" || mode === "host_only") {
-    headers.host = ATTACKER_HOST;
+    headers.host = FORGED_HOST;
   }
 
   const getResult = await requestWithHeaders(url, "GET", headers, null, timeoutMs, scanSignal);
@@ -920,8 +920,8 @@ async function requestWithHeaders(url, method, headers, body, timeoutMs, scanSig
       ...corsHeaders
     },
     bodySnippet,
-    observedAttackerHost: responseContainsHostEvidence(bodySnippet, result.response.headers),
-    observedAttackerOrigin: responseContainsOriginEvidence(bodySnippet, result.response.headers),
+    observedForgedHost: responseContainsHostEvidence(bodySnippet, result.response.headers),
+    observedForgedOrigin: responseContainsOriginEvidence(bodySnippet, result.response.headers),
     jsonRpcDetected: hasJsonRpcSignal(bodySnippet),
     mcpDetected: hasJsonRpcSignal(bodySnippet) || hasMcpKeywordSignal(bodySnippet) || isSseResponse(contentType, bodySnippet),
     toolListingDetected: extractTools(bodySnippet).length > 0,
@@ -934,27 +934,27 @@ function evaluateHeaderAcceptance(mode, getResult, postResult) {
   const acceptedMcpGet = isSuccessfulHttp(getResult.status) && getResult.mcpDetected;
   const acceptedMcpPost = isSuccessfulHttp(postResult.status) &&
     (postResult.jsonRpcDetected || postResult.toolListingDetected || postResult.mcpDetected);
-  const observedHostAndOrigin = (getResult.observedAttackerHost && getResult.observedAttackerOrigin) ||
-    (postResult.observedAttackerHost && postResult.observedAttackerOrigin);
+  const observedHostAndOrigin = (getResult.observedForgedHost && getResult.observedForgedOrigin) ||
+    (postResult.observedForgedHost && postResult.observedForgedOrigin);
 
   if (mode === "combined" && (acceptedMcpGet || acceptedMcpPost) && observedHostAndOrigin) {
     return {
       result: "likely_vulnerable",
-      evidence: `MCP endpoint responded to attacker-style Host ${ATTACKER_HOST} and Origin ${ATTACKER_ORIGIN}.`
+      evidence: `MCP endpoint responded to forged Host ${FORGED_HOST} and Origin ${FORGED_ORIGIN}.`
     };
   }
 
   if (mode === "combined" && (acceptedMcpGet || acceptedMcpPost)) {
     return {
       result: "weak_signal",
-      evidence: `MCP endpoint responded to a forged-header probe, but Host transmission was not verified. Requested Host ${ATTACKER_HOST} and Origin ${ATTACKER_ORIGIN}.`
+      evidence: `MCP endpoint responded to a forged-header probe, but Host transmission was not verified. Requested Host ${FORGED_HOST} and Origin ${FORGED_ORIGIN}.`
     };
   }
 
   if ((mode === "origin_only" || mode === "host_only") && (acceptedMcpGet || acceptedMcpPost)) {
     return {
       result: "weak_signal",
-      evidence: `MCP endpoint responded to ${mode === "origin_only" ? `Origin ${ATTACKER_ORIGIN}` : `Host ${ATTACKER_HOST}`} alone.`
+      evidence: `MCP endpoint responded to ${mode === "origin_only" ? `Origin ${FORGED_ORIGIN}` : `Host ${FORGED_HOST}`} alone.`
     };
   }
 
@@ -1001,8 +1001,8 @@ function strongestHeaderEvaluation(evaluations) {
 function buildUntestedHeaderValidation(reason) {
   return {
     tested: false,
-    attackerOrigin: ATTACKER_ORIGIN,
-    attackerHost: ATTACKER_HOST,
+    forgedOrigin: FORGED_ORIGIN,
+    forgedHost: FORGED_HOST,
     result: "unknown",
     evidence: reason,
     endpointTests: [],
@@ -1146,22 +1146,22 @@ function toFinding(target, result) {
       tested: Boolean(result.headerValidation?.tested),
       result: result.headerValidation?.result || "unknown",
       evidence: result.headerValidation?.evidence || "Header validation test did not run.",
-      attackerOrigin: result.headerValidation?.attackerOrigin || ATTACKER_ORIGIN,
-      attackerHost: result.headerValidation?.attackerHost || ATTACKER_HOST,
+      forgedOrigin: result.headerValidation?.forgedOrigin || FORGED_ORIGIN,
+      forgedHost: result.headerValidation?.forgedHost || FORGED_HOST,
       limitations: result.headerValidation?.limitations || []
     },
     originValidation: {
       tested: Boolean(result.headerValidation?.tested),
       result: result.headerValidation?.result || "unknown",
       evidence: result.headerValidation?.evidence || "Origin validation test did not run.",
-      attackerOrigin: result.headerValidation?.attackerOrigin || ATTACKER_ORIGIN,
+      forgedOrigin: result.headerValidation?.forgedOrigin || FORGED_ORIGIN,
       limitations: result.headerValidation?.limitations || []
     },
     hostValidation: {
       tested: Boolean(result.headerValidation?.tested),
       result: result.headerValidation?.result || "unknown",
       evidence: result.headerValidation?.evidence || "Host validation test did not run.",
-      attackerHost: result.headerValidation?.attackerHost || ATTACKER_HOST,
+      forgedHost: result.headerValidation?.forgedHost || FORGED_HOST,
       limitations: result.headerValidation?.limitations || []
     },
     rebindProof: emptyRebindProof(),
@@ -1512,7 +1512,7 @@ function isSuccessfulHttp(status) {
 function responseContainsHostEvidence(bodySnippet, headers) {
   const echoedHost = headers.get("x-observed-host");
 
-  if (echoedHost === ATTACKER_HOST || echoedHost?.startsWith(`${ATTACKER_HOST}:`)) {
+  if (echoedHost === FORGED_HOST || echoedHost?.startsWith(`${FORGED_HOST}:`)) {
     return true;
   }
 
@@ -1523,15 +1523,15 @@ function responseContainsHostEvidence(bodySnippet, headers) {
   try {
     const parsed = JSON.parse(bodySnippet);
     const host = String(parsed.host || parsed.headers?.host || "");
-    return host === ATTACKER_HOST || host.startsWith(`${ATTACKER_HOST}:`);
+    return host === FORGED_HOST || host.startsWith(`${FORGED_HOST}:`);
   } catch {
-    return bodySnippet.includes(`\"host\":\"${ATTACKER_HOST}\"`) ||
-      bodySnippet.includes(`\"host\":\"${ATTACKER_HOST}:`);
+    return bodySnippet.includes(`\"host\":\"${FORGED_HOST}\"`) ||
+      bodySnippet.includes(`\"host\":\"${FORGED_HOST}:`);
   }
 }
 
 function responseContainsOriginEvidence(bodySnippet, headers) {
-  if (headers.get("x-observed-origin") === ATTACKER_ORIGIN) {
+  if (headers.get("x-observed-origin") === FORGED_ORIGIN) {
     return true;
   }
 
@@ -1541,9 +1541,9 @@ function responseContainsOriginEvidence(bodySnippet, headers) {
 
   try {
     const parsed = JSON.parse(bodySnippet);
-    return parsed.origin === ATTACKER_ORIGIN || parsed.headers?.origin === ATTACKER_ORIGIN;
+    return parsed.origin === FORGED_ORIGIN || parsed.headers?.origin === FORGED_ORIGIN;
   } catch {
-    return bodySnippet.includes(`\"origin\":\"${ATTACKER_ORIGIN}\"`);
+    return bodySnippet.includes(`\"origin\":\"${FORGED_ORIGIN}\"`);
   }
 }
 

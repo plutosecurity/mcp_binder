@@ -1,4 +1,4 @@
-const DEFAULT_ATTACKER_IP = "127.0.0.1";
+const DEFAULT_OPERATOR_IP = "127.0.0.1";
 const DEFAULT_TARGET_IP = "127.0.0.1";
 const DEFAULT_LAB_DOMAIN = "example.test";
 const DEFAULT_LAUNCHER_PORT = 8080;
@@ -15,7 +15,7 @@ export function buildRebindLaunch(finding, options = {}) {
     path: descriptor.path,
     transport: descriptor.transport,
     payload: descriptor.metadata.payload,
-    attackerIp: descriptor.metadata.attackerIp,
+    operatorIp: descriptor.metadata.operatorIp,
     targetIp: descriptor.metadata.targetIp,
     labDomain: descriptor.metadata.labDomain,
     strategy: descriptor.metadata.strategy,
@@ -28,14 +28,14 @@ export function buildSingularityDescriptor(finding, options = {}) {
   const transport = normalizeTransport(options.transport || finding?.fingerprint?.transport);
   const path = normalizePath(options.path || pathFromFinding(finding) || defaultPathForTransport(transport));
   const labDomain = normalizeDomain(options.labDomain || DEFAULT_LAB_DOMAIN);
-  const attackerIp = normalizeIpv4(options.attackerIp || DEFAULT_ATTACKER_IP, "attacker IP");
+  const operatorIp = normalizeIpv4(options.operatorIp || DEFAULT_OPERATOR_IP, "operator IP");
   const targetIp = normalizeIpv4(options.targetIp || DEFAULT_TARGET_IP, "target IP");
   const launcherPort = normalizePort(options.launcherPort || DEFAULT_LAUNCHER_PORT);
   const strategy = normalizeToken(options.strategy || DEFAULT_STRATEGY, "strategy");
   const launcherPayload = normalizePayload(options.launcherPayload || DEFAULT_LAUNCHER_PAYLOAD);
   const campaignId = normalizeCampaignId(options.campaignId || `c-${randomLabel()}`);
   const payload = normalizePayload(options.payload || defaultPayloadForTransport(transport));
-  const host = `s-${ipToHex(attackerIp)}.${ipToHex(targetIp)}-${randomLabel()}-${strategy}-e.${labDomain}`;
+  const host = `s-${ipToHex(operatorIp)}.${ipToHex(targetIp)}-${randomLabel()}-${strategy}-e.${labDomain}`;
   const query = new URLSearchParams({
     campaign: campaignId,
     transport,
@@ -63,7 +63,7 @@ export function buildSingularityDescriptor(finding, options = {}) {
     transport,
     metadata: {
       payload,
-      attackerIp,
+      operatorIp,
       targetIp,
       labDomain,
       strategy,
@@ -108,7 +108,7 @@ export function buildCustomUrlDescriptor(value, options = {}) {
 export function labDefaultsFromStorage(raw = {}) {
   return {
     labDomain: stringOrDefault(raw.labDomain, DEFAULT_LAB_DOMAIN),
-    attackerIp: stringOrDefault(raw.attackerIp, DEFAULT_ATTACKER_IP),
+    operatorIp: stringOrDefault(raw.operatorIp, DEFAULT_OPERATOR_IP),
     targetIp: stringOrDefault(raw.targetIp, DEFAULT_TARGET_IP),
     launcherPort: stringOrDefault(raw.launcherPort, String(DEFAULT_LAUNCHER_PORT)),
     strategy: stringOrDefault(raw.strategy, DEFAULT_STRATEGY),

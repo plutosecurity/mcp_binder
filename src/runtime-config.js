@@ -24,7 +24,7 @@ export function labSettingsFromRuntimeConfig(config) {
   return {
     provider: config?.defaultProvider || "singularity-compatible",
     labDomain: config?.rebindDomain || "example.test",
-    attackerIp: config?.attackerIp || "127.0.0.1",
+    operatorIp: config?.operatorIp || "127.0.0.1",
     targetIp: "127.0.0.1",
     launcherPort: String(config?.launcherPort || "8080"),
     customRebindUrl: ""
@@ -39,7 +39,7 @@ function normalizeRuntimeConfig(config = {}) {
     dashboardBaseUrl: String(config.dashboardBaseUrl || config.dashboardUrl || "").replace(/\/+$/, ""),
     dashboardUrl: String(config.dashboardUrl || config.dashboardBaseUrl || "").replace(/\/+$/, ""),
     rebindDomain: String(config.rebindDomain || ""),
-    attackerIp: String(config.attackerIp || ""),
+    operatorIp: String(config.operatorIp || ""),
     defaultProvider: String(config.defaultProvider || "singularity-compatible"),
     launcherPort: Number(config.launcherPort || 8080),
     hostPermissions: Array.isArray(config.hostPermissions) ? config.hostPermissions : [],

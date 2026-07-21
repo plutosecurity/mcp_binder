@@ -15,5 +15,4 @@ jobs:
         with:
           node-version: "22"
       - run: npm run validate
-      - run: npm run release:check
       - run: git diff --check

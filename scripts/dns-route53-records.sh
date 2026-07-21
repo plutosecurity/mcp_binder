@@ -160,7 +160,7 @@ load_config() {
   PUBLIC_IP="${PUBLIC_IP:-$(json_config_value "$CONFIG_FILE" "operator.public_ip")}"
   PUBLIC_IP="${PUBLIC_IP:-$(json_config_value "$CONFIG_FILE" "operator.publicIp")}"
   if [ -z "$PUBLIC_IP" ]; then
-    PUBLIC_IP="$(json_config_value "$CONFIG_FILE" "attacker.publicIp")"
+    PUBLIC_IP="$(json_config_value "$CONFIG_FILE" "operator.publicIp")"
   fi
   local config_ttl
   config_ttl="$(json_config_value "$CONFIG_FILE" "dns.ttl")"

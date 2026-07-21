@@ -29,7 +29,6 @@ These scripts are implementation details. Use them directly only when debugging 
 | `scripts/clean-operator-vm.sh` | VM-local cleanup script for MCP Binder runtime files and services. |
 | `scripts/dns-route53-records.sh` | Optional Route53 helper that writes zone-file and change-batch records. |
 | `scripts/mock-mcp-lab.js` | Local MCP target lab for scanner and attack regression testing. |
-| `scripts/release-check.js` | Maintainer guard for public release artifacts and private markers. |
 
 The SSH wrappers and VM-local scripts are intentionally separate:
 
@@ -39,8 +38,6 @@ The SSH wrappers and VM-local scripts are intentionally separate:
 | VM runtime | `setup-operator-vm.sh`, `clean-operator-vm.sh` | Runs on the VM with `sudo`, changes systemd units and runtime directories. |
 
 Normal users should use `scripts/framework-cli.js vm ...`. The lower-level scripts stay separate so the same VM-local installer and cleaner can be reused by different transport providers later.
-
-The older `*-attacker-*` script names are compatibility wrappers. New automation should use the operator-named scripts.
 
 ## Provider Boundary
 

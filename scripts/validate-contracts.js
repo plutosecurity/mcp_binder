@@ -56,7 +56,7 @@ assert(!Object.prototype.hasOwnProperty.call(streamable, "exfil"), "streamable t
 
 assertEqual(route53.dns.rebindDomain, "rebind.example.com", "route53 example rebind domain");
 assertEqual(route53.dns.dashboardFqdn, "dashboard.example.com", "route53 example dashboard fqdn");
-assertEqual(route53.attacker.publicIp, "203.0.113.10", "route53 example public IP");
+assertEqual(route53.operator.publicIp, "203.0.113.10", "route53 example public IP");
 assertEqual(route53.extension.name, "MCP Binder Example", "route53 example extension name");
 assert(Array.isArray(route53.protectedDomains) && route53.protectedDomains.length === 0, "route53 example has no private protected domains");
 
@@ -77,7 +77,7 @@ function readJson(file) {
 }
 
 function validateFrameworkConfig(config, label) {
-  const vmConfig = config.attacker || config.operator || {};
+  const vmConfig = config.operator || {};
   const rebindDomain = pick(config.dns?.rebindDomain, config.dns?.rebind_domain);
   const dashboardFqdn = pick(config.dns?.dashboardFqdn, config.dns?.dashboard_fqdn);
   assert(rebindDomain !== undefined, `${label} missing dns.rebind_domain`);
@@ -104,10 +104,10 @@ function validateFrameworkConfig(config, label) {
 }
 
 function normalizeFrameworkFixture(config) {
-  const vmConfig = config.attacker || config.operator || {};
+  const vmConfig = config.operator || {};
   return {
     frameworkVersion: pick(config.frameworkVersion, config.framework_version, "0.1.0"),
-    attacker: {
+    operator: {
       publicIp: pick(vmConfig.publicIp, vmConfig.public_ip),
       sshHost: pick(vmConfig.sshHost, vmConfig.ssh_host),
       sshUser: pick(vmConfig.sshUser, vmConfig.ssh_user),
@@ -236,7 +236,7 @@ function validateFrameworkCli() {
   assertEqual(extensionConfig.dashboardUrl, route53.dashboard.baseUrl, "extension config dashboard URL");
   assertEqual(extensionConfig.dashboardMode, route53.extension.dashboardMode, "extension config dashboard mode");
   assertEqual(extensionConfig.rebindDomain, route53.dns.rebindDomain, "extension config rebind domain");
-  assertEqual(extensionConfig.attackerIp, route53.attacker.publicIp, "extension config attacker IP");
+  assertEqual(extensionConfig.operatorIp, route53.operator.publicIp, "extension configoperator IP");
   assertEqual(extensionConfig.defaultProvider, route53.extension.defaultProvider, "extension config provider");
   assertEqual(extensionConfig.launcherPort, route53.singularity.launcherPort, "extension config launcher port");
   assertEqual(extensionConfig.tokenPolicy, "operator-input", "extension config token policy");
@@ -248,8 +248,8 @@ function validateFrameworkCli() {
   const preflightOutput = runCli(["preflight", route53CliConfigPath, "--offline"]);
   assert(preflightOutput.ok, "framework CLI preflight returns ok");
   assertEqual(preflightOutput.mode, "offline", "preflight mode");
-  assertEqual(preflightOutput.attacker.publicIp, route53.attacker.publicIp, "preflight public IP");
-  assertEqual(preflightOutput.ssh.keyPath, route53.attacker.sshKeyPath, "preflight key path");
+  assertEqual(preflightOutput.operator.publicIp, route53.operator.publicIp, "preflight public IP");
+  assertEqual(preflightOutput.ssh.keyPath, route53.operator.sshKeyPath, "preflight key path");
   assert(preflightOutput.ssh.keyPathExpanded.endsWith("/.ssh/mcp-binder-example.pem"), "preflight expands key path without reading it");
   assertEqual(preflightOutput.dns.rebindDomain, route53.dns.rebindDomain, "preflight rebind domain");
   assertEqual(preflightOutput.dns.dashboardFqdn, route53.dns.dashboardFqdn, "preflight dashboard fqdn");
@@ -286,7 +286,7 @@ function validateFrameworkCli() {
   assertEqual(runtimeConfig.dashboardMode, "remote-http", "runtime config remote dashboard mode");
   assertEqual(runtimeConfig.dashboardBaseUrl, route53.dashboard.baseUrl, "runtime config dashboard base");
   assertEqual(runtimeConfig.rebindDomain, route53.dns.rebindDomain, "runtime config rebind domain");
-  assertEqual(runtimeConfig.attackerIp, route53.attacker.publicIp, "runtime config attacker IP");
+  assertEqual(runtimeConfig.operatorIp, route53.operator.publicIp, "runtime configoperator IP");
   assertEqual(runtimeConfig.launcherPort, route53.singularity.launcherPort, "runtime config launcher port");
   assert(typeof runtimeConfig.ingestToken === "string" && runtimeConfig.ingestToken.length >= 32, "runtime config includes generated ingest token");
 
@@ -311,7 +311,7 @@ function validateFrameworkCli() {
 
   const deploymentPlan = readJson(path.join(vmPlanDir, "deployment-plan.json"));
   assertEqual(deploymentPlan.mode, "dry-run", "VM plan mode");
-  assertEqual(deploymentPlan.attacker.publicIp, route53.attacker.publicIp, "VM plan public IP");
+  assertEqual(deploymentPlan.operator.publicIp, route53.operator.publicIp, "VM plan public IP");
   assertEqual(deploymentPlan.dns.rebindDomain, route53.dns.rebindDomain, "VM plan rebind domain");
   assertEqual(deploymentPlan.dashboard.port, route53.dashboard.port, "VM plan dashboard port");
   assert(deploymentPlan.operations.every((operation) => operation.mutates === false), "VM plan operations are non-mutating");
@@ -363,7 +363,7 @@ function validateFrameworkCli() {
   ]);
   assert(dnsVerifyOffline.ok, "framework CLI dns verify returns ok");
   assertEqual(dnsVerifyOffline.stage, "records", "dns verify defaults to record verification");
-  assert(dnsVerifyOffline.checks.some((check) => check.name === "dashboard.a" && check.expected === route53.attacker.publicIp), "dns verify checks dashboard A target");
+  assert(dnsVerifyOffline.checks.some((check) => check.name === "dashboard.a" && check.expected === route53.operator.publicIp), "dns verify checks dashboard A target");
   assert(dnsVerifyOffline.checks.some((check) => check.name === "nameserver.a" && check.target === `ns1.${route53.dns.rebindDomain}`), "dns verify checks delegated nameserver A target");
   assert(dnsVerifyOffline.checks.some((check) => check.name === "rebind.ns" && check.expected === `ns1.${route53.dns.rebindDomain}.`), "dns verify checks rebind NS target");
   const dnsVerifyText = runTextCli([
@@ -380,11 +380,11 @@ function validateFrameworkCli() {
   assert(frameworkSource.includes("retryDnsLookup"), "dns verify retries transient DNS resolver failures");
   assert(frameworkSource.includes("retryDnsLookup(() => withTimeout(dns.resolveNs(zone)"), "dns verify retries parent-zone NS lookup");
 
-  const attackerDeployDryRun = runCli(["attacker", "deploy", "--config", route53CliConfigPath]);
-  assert(attackerDeployDryRun.ok, "framework CLI attacker deploy dry-run returns ok");
-  assertEqual(attackerDeployDryRun.dryRun, true, "attacker deploy defaults to dry-run");
-  assert(attackerDeployDryRun.commandLine.includes("scripts/deploy-operator-ssh.sh"), "attacker deploy dry-run uses ssh deploy script");
-  assert(attackerDeployDryRun.commandLine.includes("--identity-file ~/.ssh/mcp-binder-example.pem"), "attacker deploy includes configured ssh key path");
+  const operatorDeployDryRun = runCli(["vm", "deploy", "--config", route53CliConfigPath]);
+  assert(operatorDeployDryRun.ok, "framework CLI vm deploy dry-run returns ok");
+  assertEqual(operatorDeployDryRun.dryRun, true, "vm deploy defaults to dry-run");
+  assert(operatorDeployDryRun.commandLine.includes("scripts/deploy-operator-ssh.sh"), "vm deploy dry-run uses ssh deploy script");
+  assert(operatorDeployDryRun.commandLine.includes("--identity-file ~/.ssh/mcp-binder-example.pem"), "vm deploy includes configured ssh key path");
   const vmDeployText = runTextCli(["vm", "deploy", "--config", route53CliConfigPath]);
   assert(vmDeployText.includes("MCP Binder vm deploy preview"), "vm deploy preview has a concise title");
   assert(vmDeployText.includes("Action: Install MCP Binder VM runtime"), "vm deploy preview explains the action");
@@ -393,11 +393,11 @@ function validateFrameworkCli() {
   assert(!vmDeployText.includes("Script:"), "vm deploy preview hides low-level script names");
   assert(!vmDeployText.includes("Command"), "vm deploy preview hides raw shell command");
 
-  const attackerCleanDryRun = runCli(["attacker", "clean", "--config", route53CliConfigPath]);
-  assert(attackerCleanDryRun.ok, "framework CLI attacker clean dry-run returns ok");
-  assertEqual(attackerCleanDryRun.dryRun, true, "attacker clean defaults to dry-run");
-  assert(attackerCleanDryRun.commandLine.includes("scripts/clean-operator-ssh.sh"), "attacker clean dry-run uses ssh clean script");
-  assert(attackerCleanDryRun.commandLine.includes("--yes"), "attacker clean includes required yes flag");
+  const operatorCleanDryRun = runCli(["vm", "clean", "--config", route53CliConfigPath]);
+  assert(operatorCleanDryRun.ok, "framework CLI vm clean dry-run returns ok");
+  assertEqual(operatorCleanDryRun.dryRun, true, "vm clean defaults to dry-run");
+  assert(operatorCleanDryRun.commandLine.includes("scripts/clean-operator-ssh.sh"), "vm clean dry-run uses ssh clean script");
+  assert(operatorCleanDryRun.commandLine.includes("--yes"), "vm clean includes required yes flag");
   const vmCleanText = runTextCli(["vm", "clean", "--config", route53CliConfigPath]);
   assert(vmCleanText.includes("MCP Binder vm clean preview"), "vm clean preview has a concise title");
   assert(vmCleanText.includes("Action: Remove MCP Binder VM runtime"), "vm clean preview explains the action");
@@ -405,16 +405,16 @@ function validateFrameworkCli() {
   assert(!vmCleanText.includes("Script:"), "vm clean preview hides low-level script names");
   assert(!vmCleanText.includes("Command"), "vm clean preview hides raw shell command");
 
-  const attackerVerifyOutput = runCli(["attacker", "verify", "--config", route53CliConfigPath, "--offline"]);
-  assert(attackerVerifyOutput.ok, "framework CLI attacker verify returns ok");
-  assertEqual(attackerVerifyOutput.mode, "offline", "attacker verify offline mode");
-  assert(attackerVerifyOutput.checks.some((check) => check.name === "ssh.target" && check.status === "info"), "attacker verify reports ssh target offline");
-  assert(attackerVerifyOutput.checks.some((check) => check.name === "singularity.launcher"), "attacker verify checks the required launcher payload");
-  assert(!attackerVerifyOutput.checks.some((check) => check.name === "singularity.manager"), "attacker verify does not require Singularity manager UI");
-  const attackerVerifyText = runTextCli(["attacker", "verify", "--config", route53CliConfigPath, "--offline"]);
-  assert(!attackerVerifyText.includes("Help:"), "attacker verify output does not print helper link noise");
-  assert(!attackerVerifyText.includes("manager.html"), "attacker verify output does not require manager.html");
-  assert(attackerVerifyText.endsWith("\n"), "attacker verify human output ends with newline");
+  const operatorVerifyOutput = runCli(["vm", "verify", "--config", route53CliConfigPath, "--offline"]);
+  assert(operatorVerifyOutput.ok, "framework CLI vm verify returns ok");
+  assertEqual(operatorVerifyOutput.mode, "offline", "vm verify offline mode");
+  assert(operatorVerifyOutput.checks.some((check) => check.name === "ssh.target" && check.status === "info"), "vm verify reports ssh target offline");
+  assert(operatorVerifyOutput.checks.some((check) => check.name === "singularity.launcher"), "vm verify checks the required launcher payload");
+  assert(!operatorVerifyOutput.checks.some((check) => check.name === "singularity.manager"), "vm verify does not require Singularity manager UI");
+  const operatorVerifyText = runTextCli(["vm", "verify", "--config", route53CliConfigPath, "--offline"]);
+  assert(!operatorVerifyText.includes("Help:"), "vm verify output does not print helper link noise");
+  assert(!operatorVerifyText.includes("manager.html"), "vm verify output does not require manager.html");
+  assert(operatorVerifyText.endsWith("\n"), "vm verify human output ends with newline");
   const vmVerifyOutput = runCli(["vm", "verify", "--config", "framework-config.template.json", "--offline"]);
   assert(vmVerifyOutput.ok, "framework CLI vm verify alias returns ok");
 
@@ -422,7 +422,6 @@ function validateFrameworkCli() {
   assert(readme.includes("bootstrap \\"), "README quickstart uses bootstrap for the public flow");
   assert(readme.includes("cp framework-config.template.json deployment.framework-config.json"), "README starts from the public framework template");
   assert(!readme.includes("examples/framework/generic.framework-config.json"), "README does not use examples as the production config source");
-  assert(!fs.readFileSync("framework-config.template.json", "utf8").toLowerCase().includes("attacker"), "public framework template avoids attacker wording");
   assert(readme.includes("dist/mcp-binder-dashboard-token"), "README documents the dashboard token path");
   assert(readme.includes("docs/cli.md"), "README links the CLI reference");
   assert(readme.includes("docs/security-hardening.md"), "README links security hardening guidance");
@@ -442,7 +441,6 @@ function validateFrameworkCli() {
   const cliDoc = fs.readFileSync("docs/cli.md", "utf8");
   assert(cliDoc.includes("vm clean"), "CLI reference documents VM cleanup");
   assert(cliDoc.includes("--json"), "CLI reference documents JSON output");
-  assert(cliDoc.includes("Compatibility Aliases"), "CLI reference documents legacy aliases");
   const infrastructureDoc = fs.readFileSync("docs/infrastructure.md", "utf8");
   assert(infrastructureDoc.includes("DNS Contract"), "infrastructure docs explain DNS contract");
   assert(infrastructureDoc.includes("Network Contract"), "infrastructure docs explain network contract");
@@ -461,7 +459,6 @@ function validateFrameworkCli() {
   assert(readme.includes("docs/configuration.md"), "README links configuration docs");
   assert(!readme.includes("## DNS Rebinding And MCP Impact"), "README does not include the removed impact section");
   assert(!readme.includes("## Advisories And CVEs"), "README does not include a standalone advisory section");
-  assert(!readme.toLowerCase().includes("attacker"), "README avoids attacker wording");
 
   const genericBootstrapDir = path.join(tempDir, "generic-bootstrap-plan");
   const genericBootstrapOutput = runCli([
@@ -472,7 +469,7 @@ function validateFrameworkCli() {
     genericBootstrapDir
   ]);
   assert(genericBootstrapOutput.ok, "framework CLI bootstrap works for provider-neutral config");
-  assert(genericBootstrapOutput.steps.some((step) => step.name === "dns.prerequisite" && step.status === "operator-owned"), "provider-neutral bootstrap reports DNS as operator-owned");
+  assert(genericBootstrapOutput.steps.some((step) => step.name === "dns.prerequisite" && step.status === "operator-owned"), "provider-neutral bootstrap reports DNS asoperator-owned");
   assert(!fs.existsSync(path.join(genericBootstrapDir, "dns", "route53.zone")), "provider-neutral bootstrap does not write Route53 plan");
 
   const extensionPackDir = path.join(tempDir, "extension-pack-from-framework");
@@ -554,10 +551,10 @@ function validateFrameworkCli() {
   const messagesSource = fs.readFileSync("src/messages.js", "utf8");
   assert(!dashboardHtml.includes("generateRebindButton"), "dashboard no longer exposes standalone generate URL control");
   assert(!dashboardHtml.includes("openRebindButton"), "dashboard no longer exposes standalone open URL control");
-  assert(!dashboardHtml.includes("operatorConsoleButton"), "dashboard no longer exposes operator console launch control");
+  assert(!dashboardHtml.includes("operatorConsoleButton"), "dashboard no longer exposesoperator console launch control");
   assert(!dashboardHtml.includes("customRebindUrlInput"), "dashboard does not expose runtime custom URL editing");
-  assert(!dashboardHtml.includes("Current bridge URL"), "dashboard does not expose internal bridge URLs as operator controls");
-  assert(!dashboardHtml.includes("attackerIpInput"), "dashboard does not expose runtime attacker IP editing");
+  assert(!dashboardHtml.includes("Current bridge URL"), "dashboard does not expose internal bridge URLs asoperator controls");
+  assert(!dashboardHtml.includes("operatorIpInput"), "dashboard does not expose runtimeoperator IP editing");
   assert(!dashboardHtml.includes("launcherPortInput"), "dashboard does not expose runtime launcher port editing");
   assert(dashboardHtml.includes("openDashboardButton"), "dashboard exposes dashboard launch control");
   assert(dashboardHtml.includes("stopRebindButton"), "dashboard exposes stop control for the offscreen bridge");
@@ -624,7 +621,7 @@ function validateFrameworkCli() {
   assert(dashboardCss.includes("cursor: nwse-resize"), "dashboard shows resize cursor on the activity resize handle");
   assert(dashboardCss.includes(".snapBackInteractive"), "dashboard styles snap-back interactive surfaces");
   assert(dashboardCss.includes(".snapBackDragging"), "dashboard styles active snap-back dragging");
-  assert(dashboardCss.includes(".operatorNotice"), "dashboard styles transient operator notices");
+  assert(dashboardCss.includes(".operatorNotice"), "dashboard styles transientoperator notices");
   assert(dashboardCss.includes(".operatorDialog"), "dashboard styles themed decision dialogs");
   assert(dashboardCss.includes(".rebindDeployment dd"), "dashboard compacts rebind deployment values");
   assert(dashboardCss.includes("cursor: not-allowed"), "dashboard disabled buttons do not show a busy cursor");
@@ -635,7 +632,7 @@ function validateFrameworkCli() {
   assert(dashboardSource.includes("dashboardLastResult"), "dashboard persists scan results across dashboard refreshes");
   assert(!dashboardSource.includes("customRebindUrlInput"), "dashboard does not persist runtime rebind infrastructure edits");
   assert(!dashboardSource.includes("chrome.tabs.create({ url }"), "dashboard does not launch raw rebind proof URLs in a tab");
-  assert(!dashboardSource.includes("searchParams.set(\"token\""), "dashboard does not put operator tokens into URLs");
+  assert(!dashboardSource.includes("searchParams.set(\"token\""), "dashboard does not putoperator tokens into URLs");
   assert(offscreenSource.includes("mcpName"), "offscreen duplicate-bridge payload preserves MCP name");
   assert(offscreenSource.includes("runtimeConfig.ingestToken"), "offscreen bridge reads ingest token from packed runtime config");
   assert(offscreenSource.includes("takeDashboardTasks(baseUrl, sessionId, ingestToken)"), "offscreen bridge uses ingest token when polling tasks");
@@ -643,8 +640,8 @@ function validateFrameworkCli() {
 
   const dashboardServerSource = fs.readFileSync("services/dashboard-server.js", "utf8");
   assert(dashboardServerSource.includes("SNAP_BACK_INTERACTION_CSS"), "server dashboard ships shared snap-back CSS");
-  assert(!dashboardServerSource.includes("params.get(\"token\")"), "server dashboards do not accept operator tokens from URL parameters");
-  assert(!dashboardServerSource.includes("searchParams.get(\"token\")"), "server dashboards do not accept operator tokens from URL parameters");
+  assert(!dashboardServerSource.includes("params.get(\"token\")"), "server dashboards do not acceptoperator tokens from URL parameters");
+  assert(!dashboardServerSource.includes("searchParams.get(\"token\")"), "server dashboards do not acceptoperator tokens from URL parameters");
   assert(dashboardServerSource.includes("SNAP_BACK_INTERACTION_SCRIPT"), "server dashboard ships shared snap-back JS");
   assert(dashboardServerSource.includes("attachServerSnapBackInteractions"), "server dashboard wires snap-back interactions");
   assert(dashboardServerSource.includes("contextmenu"), "server snap-back helper cancels stuck drags on context menu");

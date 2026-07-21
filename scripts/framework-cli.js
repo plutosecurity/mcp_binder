@@ -77,8 +77,8 @@ async function main(argv) {
     return dnsCommand(rest);
   }
 
-  if (command === "attacker" || command === "vm") {
-    return attackerCommand(rest, { namespace: command });
+  if (command === "vm") {
+    return operatorCommand(rest);
   }
 
   if (command === "extension") {
@@ -166,25 +166,23 @@ async function dnsCommand(argv) {
   throw new Error(`unknown dns command: ${subcommand || "(missing)"}`);
 }
 
-async function attackerCommand(argv, options = {}) {
+async function operatorCommand(argv) {
   const [subcommand, ...rest] = argv;
   const configPath = getOption(rest, "--config");
   assert(configPath, "vm command requires --config");
   const config = readFrameworkConfig(configPath);
 
   if (subcommand === "deploy") {
-    return runOrDescribeAttackerScript(config, {
+    return runOrDescribeOperatorScript(config, {
       action: "deploy",
-      namespace: options.namespace,
       execute: rest.includes("--execute"),
       extraArgs: rest.includes("--clear-existing") ? ["--clear-existing"] : []
     });
   }
 
   if (subcommand === "clean") {
-    return runOrDescribeAttackerScript(config, {
+    return runOrDescribeOperatorScript(config, {
       action: "clean",
-      namespace: options.namespace,
       execute: rest.includes("--execute"),
       extraArgs: [
         "--yes",
@@ -196,10 +194,10 @@ async function attackerCommand(argv, options = {}) {
 
   if (subcommand === "verify") {
     const offline = rest.includes("--offline");
-    return verifyAttacker(config, { offline, namespace: options.namespace });
+    return verifyOperator(config, { offline });
   }
 
-  throw new Error(`unknown attacker command: ${subcommand || "(missing)"}`);
+  throw new Error(`unknown vm command: ${subcommand || "(missing)"}`);
 }
 
 function extensionCommand(argv) {
@@ -237,7 +235,7 @@ async function bootstrapCommand(argv) {
         out: null,
         records: route53RecordSummary(config)
       };
-  const attackerDeploy = runOrDescribeAttackerScript(config, {
+  const operatorDeploy = runOrDescribeOperatorScript(config, {
     action: "deploy",
     namespace: "vm",
     execute: argv.includes("--deploy"),
@@ -265,8 +263,8 @@ async function bootstrapCommand(argv) {
         },
     {
       name: "vm.deploy",
-      status: attackerDeploy.dryRun ? "dry-run" : "done",
-      commandLine: attackerDeploy.commandLine
+      status: operatorDeploy.dryRun ? "dry-run" : "done",
+      commandLine: operatorDeploy.commandLine
     },
     {
       name: "extension.pack",
@@ -315,10 +313,10 @@ function writeJson(file, value) {
 function validateFrameworkConfig(config, label) {
   for (const requiredPath of [
     "frameworkVersion",
-    "attacker.publicIp",
-    "attacker.sshHost",
-    "attacker.sshUser",
-    "attacker.sshKeyPath",
+    "operator.publicIp",
+    "operator.sshHost",
+    "operator.sshUser",
+    "operator.sshKeyPath",
     "dns.rebindDomain",
     "dns.dashboardFqdn",
     "dashboard.baseUrl",
@@ -350,8 +348,8 @@ function validateFrameworkConfig(config, label) {
 
 function normalizeFrameworkConfig(raw) {
   const frameworkVersion = firstDefined(raw.frameworkVersion, raw.framework_version, "0.1.0");
-  const vmAccess = normalizeVmAccess(raw.attacker || raw.operator || {});
-  const attacker = { ...vmAccess };
+  const vmAccess = normalizeVmAccess(raw.operator || {});
+  const operator = { ...vmAccess };
   const rawDns = raw.dns || {};
   const dns = {
     provider: "manual",
@@ -379,10 +377,10 @@ function normalizeFrameworkConfig(raw) {
   return {
     ...raw,
     frameworkVersion,
-    attacker,
+    operator,
     dns: {
       ...dns,
-      records: dns.records || derivedDnsRecords({ dns, attacker })
+      records: dns.records || derivedDnsRecords({ dns, operator })
     },
     dashboard: {
       ...rawDashboard,
@@ -450,20 +448,20 @@ function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null);
 }
 
-function derivedDnsRecords({ dns, attacker }) {
+function derivedDnsRecords({ dns, operator }) {
   const ttl = dns.ttl || 60;
   const nsHost = `ns1.${dns.rebindDomain}`;
   return [
     {
       type: "A",
       name: dns.dashboardFqdn,
-      value: attacker.publicIp,
+      value: operator.publicIp,
       ttl
     },
     {
       type: "A",
       name: nsHost,
-      value: attacker.publicIp,
+      value: operator.publicIp,
       ttl
     },
     {
@@ -500,7 +498,7 @@ function validateExtensionConfig(config) {
     "dashboardBaseUrl",
     "dashboardMode",
     "rebindDomain",
-    "attackerIp",
+    "operatorIp",
     "hostPermissions",
     "defaultProvider",
     "launcherPort"
@@ -533,7 +531,7 @@ function deriveExtensionConfig(config) {
     dashboardBaseUrl: config.dashboard.baseUrl,
     dashboardMode: config.extension.dashboardMode,
     rebindDomain: config.dns.rebindDomain,
-    attackerIp: config.attacker.publicIp,
+    operatorIp: config.operator.publicIp,
     defaultProvider: config.extension.defaultProvider,
     launcherPort: config.singularity.launcherPort,
     hostPermissions: [...config.extension.hostPermissions],
@@ -546,20 +544,20 @@ function deriveExtensionConfig(config) {
 }
 
 async function buildPreflight(config, options) {
-  const keyPathExpanded = expandHome(config.attacker.sshKeyPath);
+  const keyPathExpanded = expandHome(config.operator.sshKeyPath);
   const checks = options.offline ? buildOfflineChecks(config) : await buildOnlineChecks(config);
 
   return {
     ok: true,
     command: "preflight",
     mode: options.offline ? "offline" : "online",
-    attacker: {
-      publicIp: config.attacker.publicIp,
-      sshHost: config.attacker.sshHost,
-      sshUser: config.attacker.sshUser
+    operator: {
+      publicIp: config.operator.publicIp,
+      sshHost: config.operator.sshHost,
+      sshUser: config.operator.sshUser
     },
     ssh: {
-      keyPath: config.attacker.sshKeyPath,
+      keyPath: config.operator.sshKeyPath,
       keyPathExpanded,
       keyExists: pathExists(keyPathExpanded)
     },
@@ -609,7 +607,7 @@ function buildOfflineChecks(config) {
     {
       name: "ports.expected",
       status: "info",
-      target: config.attacker.publicIp,
+      target: config.operator.publicIp,
       ports: expectedPorts(config),
       reason: "reported only"
     }
@@ -630,7 +628,7 @@ async function buildOnlineChecks(config) {
     {
       name: "ports.expected",
       status: "info",
-      target: config.attacker.publicIp,
+      target: config.operator.publicIp,
       ports: expectedPorts(config),
       reason: "reported only"
     }
@@ -769,7 +767,7 @@ function route53DnsArgs(config) {
     "--rebind-domain",
     config.dns.rebindDomain,
     "--public-ip",
-    config.attacker.publicIp,
+    config.operator.publicIp,
     "--ttl",
     String(config.dns.ttl || 60)
   ];
@@ -781,13 +779,13 @@ function route53RecordSummary(config) {
     {
       type: "A",
       name: config.dns.dashboardFqdn,
-      value: config.attacker.publicIp,
+      value: config.operator.publicIp,
       ttl: config.dns.ttl || 60
     },
     {
       type: "A",
       name: nsHost,
-      value: config.attacker.publicIp,
+      value: config.operator.publicIp,
       ttl: config.dns.ttl || 60
     },
     {
@@ -826,13 +824,13 @@ async function verifyDns(config, options) {
           name: "dashboard.a",
           status: "info",
           target: config.dns.dashboardFqdn,
-          expected: config.attacker.publicIp
+          expected: config.operator.publicIp
         },
         {
           name: "nameserver.a",
           status: "info",
           target: nsHost,
-          expected: config.attacker.publicIp
+          expected: config.operator.publicIp
         },
         {
           name: "rebind.ns",
@@ -852,8 +850,8 @@ async function verifyDns(config, options) {
     : await authoritativeResolverForZone(rebindParentZone);
 
   const [dashboard, nameserver, ns] = await Promise.all([
-    resolveARecordCheck("dashboard.a", config.dns.dashboardFqdn, config.attacker.publicIp, dashboardAuthority.resolver, dashboardParentZone),
-    resolveNameserverAddressCheck("nameserver.a", nsHost, config.attacker.publicIp, config.dns.rebindDomain, rebindResolver, rebindParentZone),
+    resolveARecordCheck("dashboard.a", config.dns.dashboardFqdn, config.operator.publicIp, dashboardAuthority.resolver, dashboardParentZone),
+    resolveNameserverAddressCheck("nameserver.a", nsHost, config.operator.publicIp, config.dns.rebindDomain, rebindResolver, rebindParentZone),
     resolveDelegationNsCheck("rebind.ns", config.dns.rebindDomain, expectedNs, rebindResolver, rebindParentZone)
   ]);
 
@@ -1035,11 +1033,11 @@ function parseNsRecords(output, hostname) {
     .map((parts) => normalizeDnsName(parts[4]));
 }
 
-function runOrDescribeAttackerScript(config, options) {
+function runOrDescribeOperatorScript(config, options) {
   const namespace = options.namespace || "vm";
   const args = options.action === "deploy"
-    ? attackerDeployArgs(config, options.extraArgs)
-    : attackerCleanArgs(config, options.extraArgs);
+    ? operatorDeployArgs(config, options.extraArgs)
+    : operatorCleanArgs(config, options.extraArgs);
   const script = options.action === "deploy"
     ? "scripts/deploy-operator-ssh.sh"
     : "scripts/clean-operator-ssh.sh";
@@ -1055,7 +1053,7 @@ function runOrDescribeAttackerScript(config, options) {
       args,
       commandLine,
       target: sshTarget(config),
-      summary: attackerCommandSummary(config, options.action, options.extraArgs)
+      summary: operatorCommandSummary(config, options.action, options.extraArgs)
     };
   }
 
@@ -1069,15 +1067,15 @@ function runOrDescribeAttackerScript(config, options) {
     args,
     commandLine,
     target: sshTarget(config),
-    summary: attackerCommandSummary(config, options.action, options.extraArgs)
+    summary: operatorCommandSummary(config, options.action, options.extraArgs)
   };
 }
 
 function sshTarget(config) {
-  return `${config.attacker.sshUser}@${config.attacker.sshHost}`;
+  return `${config.operator.sshUser}@${config.operator.sshHost}`;
 }
 
-function attackerCommandSummary(config, action, extraArgs = []) {
+function operatorCommandSummary(config, action, extraArgs = []) {
   if (action === "deploy") {
     return {
       action: "Install MCP Binder VM runtime",
@@ -1098,16 +1096,16 @@ function attackerCommandSummary(config, action, extraArgs = []) {
   };
 }
 
-function attackerDeployArgs(config, extraArgs = []) {
+function operatorDeployArgs(config, extraArgs = []) {
   return compact([
     "--host",
-    config.attacker.sshHost,
+    config.operator.sshHost,
     "--user",
-    config.attacker.sshUser,
+    config.operator.sshUser,
     "--identity-file",
-    config.attacker.sshKeyPath,
+    config.operator.sshKeyPath,
     "--public-ip",
-    config.attacker.publicIp,
+    config.operator.publicIp,
     "--rebind-domain",
     config.dns.rebindDomain,
     "--dashboard-domain",
@@ -1126,19 +1124,19 @@ function attackerDeployArgs(config, extraArgs = []) {
   ]);
 }
 
-function attackerCleanArgs(config, extraArgs = []) {
+function operatorCleanArgs(config, extraArgs = []) {
   return compact([
     "--host",
-    config.attacker.sshHost,
+    config.operator.sshHost,
     "--user",
-    config.attacker.sshUser,
+    config.operator.sshUser,
     "--identity-file",
-    config.attacker.sshKeyPath,
+    config.operator.sshKeyPath,
     ...extraArgs
   ]);
 }
 
-async function verifyAttacker(config, options) {
+async function verifyOperator(config, options) {
   const namespace = options.namespace || "vm";
   if (options.offline) {
     return {
@@ -1149,8 +1147,8 @@ async function verifyAttacker(config, options) {
         {
           name: "ssh.target",
           status: "info",
-          target: `${config.attacker.sshUser}@${config.attacker.sshHost}`,
-          keyPath: config.attacker.sshKeyPath
+          target: `${config.operator.sshUser}@${config.operator.sshHost}`,
+          keyPath: config.operator.sshKeyPath
         },
         {
           name: "dashboard.health",
@@ -1161,7 +1159,7 @@ async function verifyAttacker(config, options) {
         {
           name: "singularity.launcher",
           status: "skipped",
-          target: `http://${config.attacker.publicIp}:${config.singularity.launcherPort}/payloads/victim-launcher.html`,
+          target: `http://${config.operator.publicIp}:${config.singularity.launcherPort}/payloads/victim-launcher.html`,
           reason: "offline verification"
         }
       ]
@@ -1170,7 +1168,7 @@ async function verifyAttacker(config, options) {
 
   const [dashboard, launcher] = await Promise.all([
     dashboardHealthCheckFor(config),
-    httpCheck("singularity.launcher", `http://${config.attacker.publicIp}:${config.singularity.launcherPort}/payloads/victim-launcher.html`)
+    httpCheck("singularity.launcher", `http://${config.operator.publicIp}:${config.singularity.launcherPort}/payloads/victim-launcher.html`)
   ]);
 
   return {
@@ -1212,7 +1210,7 @@ function buildRuntimeConfig(extensionConfig) {
     dashboardBaseUrl: extensionConfig.dashboardBaseUrl || extensionConfig.dashboardUrl,
     dashboardUrl: extensionConfig.dashboardUrl,
     rebindDomain: extensionConfig.rebindDomain,
-    attackerIp: extensionConfig.attackerIp,
+    operatorIp: extensionConfig.operatorIp,
     defaultProvider: extensionConfig.defaultProvider,
     launcherPort: extensionConfig.launcherPort,
     hostPermissions: extensionConfig.hostPermissions,
@@ -1250,13 +1248,13 @@ function writeVmSetupPlan(config, outDir) {
     generatedAt: new Date().toISOString(),
     mode: "dry-run",
     frameworkVersion: config.frameworkVersion,
-    attacker: {
-      publicIp: config.attacker.publicIp,
-      sshHost: config.attacker.sshHost,
-      sshUser: config.attacker.sshUser,
-      cloud: config.attacker.cloud || "other",
-      vmName: config.attacker.vmName || "",
-      resourceGroup: config.attacker.resourceGroup || ""
+    operator: {
+      publicIp: config.operator.publicIp,
+      sshHost: config.operator.sshHost,
+      sshUser: config.operator.sshUser,
+      cloud: config.operator.cloud || "other",
+      vmName: config.operator.vmName || "",
+      resourceGroup: config.operator.resourceGroup || ""
     },
     dns: {
       provider: config.dns.provider || "manual",
@@ -1344,10 +1342,10 @@ function copyPath(source, target) {
 function summarizeFrameworkConfig(config) {
   return {
     frameworkVersion: config.frameworkVersion,
-    attacker: {
-      publicIp: config.attacker.publicIp,
-      sshHost: config.attacker.sshHost,
-      sshUser: config.attacker.sshUser
+    operator: {
+      publicIp: config.operator.publicIp,
+      sshHost: config.operator.sshHost,
+      sshUser: config.operator.sshUser
     },
     dns: {
       rebindDomain: config.dns.rebindDomain,
@@ -1472,19 +1470,16 @@ function formatResult(result) {
       return [
         `${ICON.info} MCP Binder preflight (${result.mode})`,
         "",
-        `VM: ${result.attacker.sshUser}@${result.attacker.sshHost}`,
+        `VM: ${result.operator.sshUser}@${result.operator.sshHost}`,
         `Dashboard: ${result.dashboard.baseUrl}`,
         `Rebind domain: ${result.dns.rebindDomain}`,
         "",
         formatChecks(result.checks),
         formatWarnings(result.warnings)
       ].filter(Boolean).join("\n").replace(/\n+$/, "\n");
-    case "attacker deploy":
-    case "attacker clean":
     case "vm deploy":
     case "vm clean":
-      return formatAttackerCommand(result);
-    case "attacker verify":
+      return formatOperatorCommand(result);
     case "vm verify":
     case "dns verify":
       return [
@@ -1540,15 +1535,15 @@ function formatValidateConfig(result) {
     `${ICON.ok} MCP Binder config ready`,
     "",
     "VM",
-    `  ${ICON.info} SSH: ${config.attacker.sshUser}@${config.attacker.sshHost}`,
-    `  ${ICON.info} Public IP: ${config.attacker.publicIp}`,
+    `  ${ICON.info} SSH: ${config.operator.sshUser}@${config.operator.sshHost}`,
+    `  ${ICON.info} Public IP: ${config.operator.publicIp}`,
     "",
     "DNS records to create",
     indent(formatRecords(config.dns.records), "  "),
     "",
     "Runtime",
     `  ${ICON.info} Dashboard: ${config.dashboard.baseUrl}`,
-    `  ${ICON.info} Launcher: http://${config.attacker.publicIp}:${config.singularity.launcherPort}/payloads/victim-launcher.html`,
+    `  ${ICON.info} Launcher: http://${config.operator.publicIp}:${config.singularity.launcherPort}/payloads/victim-launcher.html`,
     `  ${ICON.info} Rebind ports: ${formatPorts(config.singularity.httpPorts)}`,
     "",
     "Extension",
@@ -1558,7 +1553,7 @@ function formatValidateConfig(result) {
   ].filter(Boolean).join("\n").replace(/\n+$/, "\n");
 }
 
-function formatAttackerCommand(result) {
+function formatOperatorCommand(result) {
   const title = result.dryRun
     ? `${ICON.info} MCP Binder ${result.command} preview`
     : `${ICON.ok} MCP Binder ${result.command} complete`;
@@ -1658,7 +1653,7 @@ function indent(text, prefix) {
 function renderEnvExample(config) {
   return [
     `MCP_BINDER_FRAMEWORK_VERSION=${config.frameworkVersion}`,
-    `MCP_BINDER_PUBLIC_IP=${config.attacker.publicIp}`,
+    `MCP_BINDER_PUBLIC_IP=${config.operator.publicIp}`,
     `MCP_BINDER_REBIND_DOMAIN=${config.dns.rebindDomain}`,
     `MCP_BINDER_DASHBOARD_FQDN=${config.dns.dashboardFqdn}`,
     `MCP_BINDER_DASHBOARD_PORT=${config.dashboard.port}`,
@@ -1722,7 +1717,7 @@ function renderBootstrapDryRun(config) {
     "set -eu",
     "",
     "echo 'MCP Binder VM bootstrap dry-run only. No system changes will be applied.'",
-    `echo 'Target VM: ${config.attacker.sshUser}@${config.attacker.sshHost}'`,
+    `echo 'Target VM: ${config.operator.sshUser}@${config.operator.sshHost}'`,
     `echo 'Dashboard: ${config.dashboard.baseUrl}'`,
     `echo 'Rebind domain: ${config.dns.rebindDomain}'`,
     `echo 'Expected ports: ${expectedPorts(config).join(",")}'`,

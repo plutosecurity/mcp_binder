@@ -32,7 +32,7 @@ const launch = buildRebindLaunch({
   }
 }, {
   labDomain: "rebind.example.test",
-  attackerIp: "203.0.113.10",
+  operatorIp: "203.0.113.10",
   targetIp: "127.0.0.1",
   launcherPort: "8080",
   campaignId: "c-example"
@@ -52,7 +52,7 @@ const singularityDescriptor = buildSingularityDescriptor({
   }
 }, {
   labDomain: "rebind.example.test",
-  attackerIp: "203.0.113.10",
+  operatorIp: "203.0.113.10",
   targetIp: "127.0.0.1",
   launcherPort: "8080",
   campaignId: "c-example"
@@ -203,7 +203,7 @@ try {
   await close(server);
 }
 
-const flipServer = await listenAfterAttackerPhase(20381);
+const flipServer = await listenAfterRebindPhase(20381);
 try {
   const retryDashboard = createMemoryDashboard({ now: () => "2026-07-14T00:00:00.000Z" });
   const retry = await runRebindBridge({
@@ -510,7 +510,7 @@ assertEqual(
   "scan policy allows target when extension site access grants host"
 );
 try {
-  validateScanTargetAccess("attacker.com", { allowedHostPermissions: ["http://google.com/*"] });
+  validateScanTargetAccess("operator.com", { allowedHostPermissions: ["http://google.com/*"] });
   throw new Error("scan policy should reject target not covered by site access");
 } catch (error) {
   assertEqual(String(error.message).includes("http://google.com/*"), true, "scan policy error names current site access");
@@ -589,7 +589,7 @@ function listen(port) {
   });
 }
 
-function listenAfterAttackerPhase(port) {
+function listenAfterRebindPhase(port) {
   let initializeAttempts = 0;
   const server = http.createServer((req, res) => {
     readBody(req).then((body) => {
@@ -601,7 +601,7 @@ function listenAfterAttackerPhase(port) {
       if (body.method === "initialize") {
         initializeAttempts += 1;
         if (initializeAttempts === 1) {
-          json(res, 404, { phase: "attacker" });
+          json(res, 404, { phase: "rebind" });
           return;
         }
         json(res, 200, {

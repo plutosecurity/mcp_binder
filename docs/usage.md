@@ -15,6 +15,5 @@ MCP Binder has four operator-facing flows. Start with deployment, then keep the 
 | [Security Hardening](security-hardening.md) | Implemented controls, dashboard HTTP risk, TLS guidance, and residual hardening notes. |
 | [Testing](testing.md) | Source build, mock MCP lab, validation commands, known limits. |
 | [Troubleshooting](troubleshooting.md) | Test config, DNS, SSH, VM services, dashboard, and extension packing one module at a time. |
-| [Release Checklist](release-checklist.md) | Maintainer checks before syncing private work into the public repository. |
 
 The top-level [README](../README.md) stays intentionally short. These docs hold the command details.

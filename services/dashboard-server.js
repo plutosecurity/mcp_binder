@@ -274,7 +274,7 @@ async function handleRequest(req, res) {
   const pathname = url.pathname;
 
   if (req.method === "GET" && pathname === "/") {
-    html(res, 200, renderAttackerDashboard());
+    html(res, 200, renderOperatorDashboard());
     return;
   }
 
@@ -1001,7 +1001,7 @@ attachServerSnapBackInteractions();
 </html>`;
 }
 
-function renderAttackerDashboard() {
+function renderOperatorDashboard() {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -2710,7 +2710,7 @@ function labConfig() {
     service: "mcp_binder-dashboard",
     domain: options.rebindDomain,
     rebindDomain: options.rebindDomain,
-    attackerIp: options.publicIp,
+    operatorIp: options.publicIp,
     publicIp: options.publicIp,
     dashboardFqdn: options.dashboardFqdn,
     defaultTargetIp: options.defaultTargetIp,

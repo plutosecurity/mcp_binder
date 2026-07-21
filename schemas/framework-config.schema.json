@@ -3,11 +3,7 @@
   "$id": "https://example.com/schemas/mcp-binder/framework-config.schema.json",
   "title": "MCP Binder Framework Config",
   "type": "object",
-  "required": ["dns"],
-  "anyOf": [
-    { "required": ["attacker"] },
-    { "required": ["operator"] }
-  ],
+  "required": ["operator", "dns"],
   "additionalProperties": false,
   "properties": {
     "frameworkVersion": {
@@ -17,9 +13,6 @@
     "framework_version": {
       "type": "string",
       "minLength": 1
-    },
-    "attacker": {
-      "$ref": "#/$defs/vmAccess"
     },
     "operator": {
       "$ref": "#/$defs/vmAccess"

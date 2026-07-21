@@ -33,7 +33,3 @@ MCP Binder is split into small modules so the same workflow can run against diff
 | Dashboard to public internet | Use TLS for shared or long-lived labs. HTTP is only acceptable for short-lived isolated labs. |
 | VM network policy | The operator must expose DNS, dashboard, and selected Singularity ports. MCP Binder does not manage cloud firewalls. |
 | DNS provider | The operator owns record creation. Helpers generate records, but provider APIs stay optional. |
-
-## Compatibility Notes
-
-The CLI still accepts `attacker deploy`, `attacker verify`, and `attacker clean` for old automation. New docs and scripts use `vm` and `operator` terminology.

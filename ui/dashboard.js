@@ -1518,11 +1518,11 @@ async function loadDeploymentSettings() {
 
 function renderVmIpValue() {
   const runtimeDefaults = runtimeConfig ? labSettingsFromRuntimeConfig(runtimeConfig) : {};
-  const attackerIp = runtimeDefaults.attackerIp || "";
+  const operatorIp = runtimeDefaults.operatorIp || "";
   const wrapper = vmIpValue.closest(".vmIpSecret");
   wrapper?.classList.toggle("masked", !vmIpVisible);
-  vmIpValue.textContent = vmIpVisible ? attackerIp || "-" : maskVmIp(attackerIp);
-  vmIpValue.title = vmIpVisible ? attackerIp || "" : "VM IP hidden";
+  vmIpValue.textContent = vmIpVisible ? operatorIp || "-" : maskVmIp(operatorIp);
+  vmIpValue.title = vmIpVisible ? operatorIp || "" : "VM IP hidden";
   toggleVmIpButton.setAttribute("aria-label", vmIpVisible ? "Hide VM IP" : "Reveal VM IP");
   toggleVmIpButton.title = vmIpVisible ? "Hide VM IP" : "Reveal VM IP";
   vmIpEyeIcon.innerHTML = vmIpVisible ? OPEN_EYE_ICON : CLOSED_EYE_ICON;

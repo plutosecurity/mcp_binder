@@ -1,0 +1,27 @@
+{
+  "campaignId": "campaign-example",
+  "victimId": "victim-example",
+  "origin": "http://token.example.test:8080",
+  "hostname": "token.example.test",
+  "ports": [8086],
+  "transport": "streamable",
+  "path": "/mcp",
+  "dns": {
+    "firstAddress": "203.0.113.10",
+    "reboundAddress": "127.0.0.1"
+  },
+  "requests": [
+    {
+      "url": "http://token.example.test:8086/mcp",
+      "status": 200,
+      "contentType": "text/event-stream"
+    }
+  ],
+  "mcp": {
+    "detected": true,
+    "protocolVersion": "2024-11-05",
+    "serverName": "example-mcp",
+    "tools": ["example_tool"]
+  },
+  "errors": []
+}

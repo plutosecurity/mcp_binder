@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mcp-binder/dashboard-state.schema.json",
+  "title": "MCP Binder Dashboard State",
+  "type": "object",
+  "required": ["events", "victims", "sessions", "tasks", "results"],
+  "additionalProperties": true,
+  "properties": {
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "victims": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/victim" }
+    },
+    "sessions": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/session" }
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/task" }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "lab": { "type": "object" },
+    "exportedAt": { "type": "string" }
+  },
+  "$defs": {
+    "victim": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "displayName": { "type": "string" },
+        "firstSeen": { "type": "string" },
+        "lastSeen": { "type": "string" },
+        "sessions": { "type": "array", "items": { "type": "string" } },
+        "ports": { "type": "array", "items": { "type": "integer" } }
+      }
+    },
+    "session": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "victimId": { "type": "string" },
+        "campaignId": { "type": "string" },
+        "origin": { "type": "string" },
+        "transport": { "type": "string" },
+        "status": { "type": "string" },
+        "meta": { "type": "object" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string" },
+        "session": { "type": "string" },
+        "payload": { "type": "object" }
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["tools/list", "tools/call", "rpc"] },
+        "tool": { "type": "string" },
+        "args": { "type": "object" },
+        "rpc": { "type": "object" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "session": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "stage": { "type": "string" },
+        "kind": { "type": "string" },
+        "data": {}
+      }
+    }
+  }
+}

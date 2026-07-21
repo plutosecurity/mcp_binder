@@ -1,0 +1,12 @@
+{
+  "operator": {
+    "public_ip": "203.0.113.10",
+    "ssh_host": "203.0.113.10",
+    "ssh_user": "ubuntu",
+    "ssh_key_path": "~/.ssh/mcp-binder-example.pem"
+  },
+  "dns": {
+    "rebind_domain": "rebind.example.com",
+    "dashboard_fqdn": "dashboard.example.com"
+  }
+}

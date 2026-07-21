@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mcp-binder/extension-build-config.schema.json",
+  "title": "MCP Binder Extension Build Config",
+  "type": "object",
+  "required": ["name", "version", "dashboardUrl", "dashboardBaseUrl", "dashboardMode", "rebindDomain", "attackerIp", "hostPermissions", "defaultProvider", "launcherPort"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "dashboardUrl": { "type": "string", "pattern": "^https?://" },
+    "dashboardBaseUrl": { "type": "string", "pattern": "^https?://" },
+    "dashboardMode": { "type": "string", "enum": ["remote-http", "extension-local"] },
+    "rebindDomain": { "type": "string", "minLength": 1 },
+    "attackerIp": { "type": "string", "pattern": "^[0-9]{1,3}(\\.[0-9]{1,3}){3}$" },
+    "defaultProvider": { "type": "string", "enum": ["singularity-compatible", "custom-url"] },
+    "launcherPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "dashboardTokenFile": { "type": "string" },
+    "hostPermissions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "tokenPolicy": { "type": "string", "enum": ["none", "operator-input", "build-time"] },
+    "protectedDomains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  }
+}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">MCP Binder icon</title>
+  <desc id="desc">A transparent orange eye mark with a black X for MCP Binder.</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 64c15-25 33-37 50-37s35 12 50 37c-15 25-33 37-50 37S29 89 14 64Z" stroke="#f3c735" stroke-width="15"/>
+    <path d="M50 50l28 28M78 50 50 78" stroke="#14120f" stroke-width="10"/>
+  </g>
+</svg>

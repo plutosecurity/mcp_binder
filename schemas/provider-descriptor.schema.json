@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mcp-binder/provider-descriptor.schema.json",
+  "title": "MCP Binder Provider Descriptor",
+  "type": "object",
+  "required": ["provider", "mode", "launchUrl", "probeUrl", "host", "port", "path", "transport", "campaignId", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "provider": { "type": "string", "enum": ["singularity-compatible", "custom-url"] },
+    "mode": { "type": "string", "enum": ["generated", "manual"] },
+    "launchUrl": { "type": "string", "pattern": "^https?://" },
+    "probeUrl": { "type": "string", "pattern": "^https?://" },
+    "host": { "type": "string", "minLength": 1 },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "path": { "type": "string", "pattern": "^/" },
+    "transport": { "type": "string", "enum": ["streamable", "sse", "websocket"] },
+    "campaignId": { "type": "string", "minLength": 1 },
+    "strategy": { "type": "string", "enum": ["fs", "ma", "rr", "rd"] },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

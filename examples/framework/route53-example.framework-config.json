@@ -1,0 +1,68 @@
+{
+  "framework_version": "0.1.0",
+  "operator": {
+    "public_ip": "203.0.113.10",
+    "ssh_host": "203.0.113.10",
+    "ssh_user": "ubuntu",
+    "ssh_key_path": "~/.ssh/mcp-binder-example.pem",
+    "cloud": "other",
+    "vm_name": "mcp-binder-example"
+  },
+  "dns": {
+    "provider": "route53",
+    "rebind_domain": "rebind.example.com",
+    "dashboard_fqdn": "dashboard.example.com",
+    "ttl": 60,
+    "records": [
+      {
+        "type": "A",
+        "name": "dashboard.example.com",
+        "value": "203.0.113.10",
+        "ttl": 60
+      },
+      {
+        "type": "A",
+        "name": "ns1.rebind.example.com",
+        "value": "203.0.113.10",
+        "ttl": 60
+      },
+      {
+        "type": "NS",
+        "name": "rebind.example.com",
+        "value": "ns1.rebind.example.com.",
+        "ttl": 60
+      }
+    ]
+  },
+  "dashboard": {
+    "base_url": "http://dashboard.example.com:8090",
+    "port": 8090,
+    "auth": {
+      "mode": "bearer-token",
+      "token_env": "MCP_BINDER_DASHBOARD_TOKEN",
+      "token_file": "dist/mcp-binder-dashboard-token"
+    },
+    "evidence_dir": "/var/lib/mcp_binder/evidence",
+    "health_path": "/healthz"
+  },
+  "singularity": {
+    "launcher_port": 8080,
+    "http_ports": [8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8089],
+    "extra_http_ports": [],
+    "strategy": "fs",
+    "response_rebound_ip": "127.0.0.1",
+    "payload_root": "/opt/singularity-payloads/html"
+  },
+  "extension": {
+    "name": "MCP Binder Example",
+    "default_provider": "singularity-compatible",
+    "dashboard_mode": "remote-http",
+    "host_permissions": [
+      "http://*.rebind.example.com/*",
+      "http://dashboard.example.com/*"
+    ],
+    "build_output": "dist/mcp_binder-example",
+    "inject_token": false
+  },
+  "protected_domains": []
+}

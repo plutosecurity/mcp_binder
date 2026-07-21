@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mcp-binder/evidence.schema.json",
+  "title": "MCP Binder Evidence Export",
+  "type": "object",
+  "required": ["frameworkVersion", "exportedAt", "verdict", "dashboardState", "proof"],
+  "additionalProperties": false,
+  "properties": {
+    "frameworkVersion": { "type": "string", "minLength": 1 },
+    "exportedAt": { "type": "string", "minLength": 1 },
+    "verdict": { "type": "string", "enum": ["vulnerable", "not_confirmed", "blocked", "inconclusive"] },
+    "infra": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "configFingerprint": { "type": "string" },
+        "rebindDomain": { "type": "string" },
+        "dashboardFqdn": { "type": "string" }
+      }
+    },
+    "dashboardState": { "$ref": "dashboard-state.schema.json" },
+    "proof": {
+      "type": "object",
+      "required": ["campaignId", "sessions", "results"],
+      "additionalProperties": true,
+      "properties": {
+        "campaignId": { "type": "string" },
+        "sessions": { "type": "array", "items": { "type": "string" } },
+        "results": { "type": "array" },
+        "tools": { "type": "array" },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

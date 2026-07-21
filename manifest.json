@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "MCP Binder",
+  "description": "Local MCP exposure scanner for controlled security research.",
+  "version": "0.1.0",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "MCP Binder",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "offscreen",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localtest.me:*/*",
+    "http://*.localtest.me:*/*",
+    "http://*.rebind.example.com/*",
+    "http://dashboard.example.com/*"
+  ]
+}

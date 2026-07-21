@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">MCP Binder workflow</title>
+  <desc id="desc">Researcher workflow from configuration to captured MCP session.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbf7e7"/>
+      <stop offset="1" stop-color="#efe6bf"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="7" stdDeviation="5" flood-color="#181510" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <g stroke="#d8ca8f" stroke-width="1">
+    <path d="M0 40h1280M0 80h1280M0 120h1280M0 160h1280M0 200h1280M0 240h1280M0 280h1280M0 320h1280M0 360h1280M0 400h1280"/>
+    <path d="M40 0v420M80 0v420M120 0v420M160 0v420M200 0v420M240 0v420M280 0v420M320 0v420M360 0v420M400 0v420M440 0v420M480 0v420M520 0v420M560 0v420M600 0v420M640 0v420M680 0v420M720 0v420M760 0v420M800 0v420M840 0v420M880 0v420M920 0v420M960 0v420M1000 0v420M1040 0v420M1080 0v420M1120 0v420M1160 0v420M1200 0v420M1240 0v420"/>
+  </g>
+  <text x="72" y="76" fill="#171510" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="900">MCP Binder workflow</text>
+  <text x="72" y="116" fill="#5d5847" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="650">One config turns a clean VM into a working MCP rebinding lab.</text>
+  <g font-family="Inter, Arial, sans-serif" filter="url(#shadow)">
+    <g transform="translate(72 184)">
+      <rect width="190" height="136" rx="8" fill="#fffdf3" stroke="#171510" stroke-width="4"/>
+      <text x="22" y="38" fill="#171510" font-size="22" font-weight="900">1. Configure</text>
+      <text x="22" y="74" fill="#5d5847" font-size="16" font-weight="650">VM SSH key</text>
+      <text x="22" y="100" fill="#5d5847" font-size="16" font-weight="650">DNS records</text>
+    </g>
+    <g transform="translate(312 184)">
+      <rect width="190" height="136" rx="8" fill="#fff4bf" stroke="#171510" stroke-width="4"/>
+      <text x="22" y="38" fill="#171510" font-size="22" font-weight="900">2. Deploy</text>
+      <text x="22" y="74" fill="#5d5847" font-size="16" font-weight="650">Operator VM</text>
+      <text x="22" y="100" fill="#5d5847" font-size="16" font-weight="650">Rebinding runtime</text>
+    </g>
+    <g transform="translate(552 184)">
+      <rect width="190" height="136" rx="8" fill="#e7fff4" stroke="#171510" stroke-width="4"/>
+      <text x="22" y="38" fill="#171510" font-size="22" font-weight="900">3. Pack</text>
+      <text x="22" y="74" fill="#5d5847" font-size="16" font-weight="650">Chrome extension</text>
+      <text x="22" y="100" fill="#5d5847" font-size="16" font-weight="650">Dashboard token</text>
+    </g>
+    <g transform="translate(792 184)">
+      <rect width="190" height="136" rx="8" fill="#fffdf3" stroke="#171510" stroke-width="4"/>
+      <text x="22" y="38" fill="#171510" font-size="22" font-weight="900">4. Scan</text>
+      <text x="22" y="74" fill="#5d5847" font-size="16" font-weight="650">Find MCP services</text>
+      <text x="22" y="100" fill="#5d5847" font-size="16" font-weight="650">Launch rebind attack</text>
+    </g>
+    <g transform="translate(1032 184)">
+      <rect width="190" height="136" rx="8" fill="#ffe3d3" stroke="#171510" stroke-width="4"/>
+      <text x="22" y="38" fill="#171510" font-size="22" font-weight="900">5. Operate</text>
+      <text x="22" y="74" fill="#5d3025" font-size="16" font-weight="650">Queue MCP calls</text>
+      <text x="22" y="100" fill="#5d3025" font-size="16" font-weight="650">Control the session</text>
+    </g>
+  </g>
+  <g fill="none" stroke="#171510" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M270 252h32"/>
+    <path d="M292 242l12 10-12 10"/>
+    <path d="M510 252h32"/>
+    <path d="M532 242l12 10-12 10"/>
+    <path d="M750 252h32"/>
+    <path d="M772 242l12 10-12 10"/>
+    <path d="M990 252h32"/>
+    <path d="M1012 242l12 10-12 10"/>
+  </g>
+</svg>

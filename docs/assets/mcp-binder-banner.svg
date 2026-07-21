@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">MCP Binder</title>
+  <desc id="desc">Research framework for turning MCP DNS rebinding into a live attack lab.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07120f"/>
+      <stop offset=".52" stop-color="#10241e"/>
+      <stop offset="1" stop-color="#17130b"/>
+    </linearGradient>
+    <radialGradient id="pulse" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#55f0b2" stop-opacity=".45"/>
+      <stop offset=".55" stop-color="#55f0b2" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#55f0b2" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0v42" fill="none" stroke="#f0d96a" stroke-opacity=".10" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <rect width="1280" height="420" fill="url(#grid)"/>
+  <circle cx="1048" cy="278" r="154" fill="url(#pulse)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M812 278h92" stroke="#f8f0c8" stroke-width="7"/>
+    <path d="M904 278c48-92 140-92 188 0" stroke="#42d99c" stroke-width="7"/>
+    <path d="M904 278c48 92 140 92 188 0" stroke="#f2cf3b" stroke-width="7"/>
+    <path d="M1092 278h94" stroke="#f8f0c8" stroke-width="7"/>
+    <path d="M956 218l92 120" stroke="#f8f0c8" stroke-opacity=".55" stroke-width="4" stroke-dasharray="10 16"/>
+    <path d="M956 338l92-120" stroke="#f8f0c8" stroke-opacity=".55" stroke-width="4" stroke-dasharray="10 16"/>
+  </g>
+  <g>
+    <circle cx="812" cy="278" r="18" fill="#f8f0c8"/>
+    <circle cx="904" cy="278" r="24" fill="#42d99c"/>
+    <circle cx="1092" cy="278" r="24" fill="#f2cf3b"/>
+    <circle cx="1186" cy="278" r="18" fill="#f8f0c8"/>
+    <circle cx="956" cy="218" r="11" fill="#42d99c"/>
+    <circle cx="956" cy="338" r="11" fill="#f2cf3b"/>
+    <circle cx="1048" cy="218" r="11" fill="#f2cf3b"/>
+    <circle cx="1048" cy="338" r="11" fill="#42d99c"/>
+  </g>
+  <g transform="translate(84 126)">
+    <text x="0" y="0" fill="#fffbed" font-family="Inter, Arial, sans-serif" font-size="92" font-weight="900">MCP Binder</text>
+    <text x="2" y="58" fill="#f6f1d7" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="650">Research framework for turning MCP DNS rebinding into a live attack lab</text>
+    <text x="2" y="102" fill="#f6f1d7" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="750">Discover. Rebind. Operate.</text>
+    <rect x="2" y="142" width="390" height="4" rx="2" fill="#42d99c"/>
+    <rect x="402" y="142" width="116" height="4" rx="2" fill="#f2cf3b"/>
+  </g>
+</svg>

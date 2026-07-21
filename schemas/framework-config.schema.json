@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mcp-binder/framework-config.schema.json",
+  "title": "MCP Binder Framework Config",
+  "type": "object",
+  "required": ["dns"],
+  "anyOf": [
+    { "required": ["attacker"] },
+    { "required": ["operator"] }
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "frameworkVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "framework_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attacker": {
+      "$ref": "#/$defs/vmAccess"
+    },
+    "operator": {
+      "$ref": "#/$defs/vmAccess"
+    },
+    "dns": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["rebind_domain", "dashboard_fqdn"] },
+        { "required": ["rebindDomain", "dashboardFqdn"] }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rebind_domain": { "type": "string", "minLength": 1 },
+        "dashboard_fqdn": { "type": "string", "minLength": 1 },
+        "rebindDomain": { "type": "string", "minLength": 1 },
+        "dashboardFqdn": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "enum": ["route53", "manual", "other"] },
+        "hosted_zone_id": { "type": "string" },
+        "hostedZoneId": { "type": "string" },
+        "ttl": { "type": "integer", "minimum": 1 },
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dnsRecord" }
+        }
+      }
+    },
+    "dashboard": {
+      "type": "object",
+      "required": ["port", "auth"],
+      "anyOf": [
+        { "required": ["base_url"] },
+        { "required": ["baseUrl"] }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "base_url": { "type": "string", "pattern": "^https?://" },
+        "baseUrl": { "type": "string", "pattern": "^https?://" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "auth": {
+          "type": "object",
+          "required": ["mode"],
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "type": "string", "enum": ["none", "bearer-token"] },
+            "token_env": { "type": "string" },
+            "tokenEnv": { "type": "string" },
+            "token_file": { "type": "string" },
+            "tokenFile": { "type": "string" }
+          }
+        },
+        "evidence_dir": { "type": "string" },
+        "evidenceDir": { "type": "string" },
+        "health_path": { "type": "string" },
+        "healthPath": { "type": "string" }
+      }
+    },
+    "singularity": {
+      "type": "object",
+      "required": ["strategy"],
+      "allOf": [
+        {
+          "anyOf": [
+            { "required": ["launcher_port"] },
+            { "required": ["launcherPort"] }
+          ]
+        },
+        {
+          "anyOf": [
+            { "required": ["http_ports"] },
+            { "required": ["httpPorts"] }
+          ]
+        },
+        {
+          "anyOf": [
+            { "required": ["response_rebound_ip"] },
+            { "required": ["responseReboundIp"] }
+          ]
+        }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "launcher_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "launcherPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "http_ports": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "httpPorts": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "extra_http_ports": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "uniqueItems": true
+        },
+        "extraHttpPorts": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "uniqueItems": true
+        },
+        "strategy": { "type": "string", "enum": ["fs", "ma", "rr", "rd"] },
+        "response_rebound_ip": { "type": "string" },
+        "responseReboundIp": { "type": "string" },
+        "payload_root": { "type": "string" },
+        "payloadRoot": { "type": "string" }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dashboard": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "launcher": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "http": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "extra_http": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "uniqueItems": true
+        },
+        "extraHttp": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "extension": {
+      "type": "object",
+      "required": ["name"],
+      "allOf": [
+        {
+          "anyOf": [
+            { "required": ["default_provider"] },
+            { "required": ["defaultProvider"] }
+          ]
+        },
+        {
+          "anyOf": [
+            { "required": ["dashboard_mode"] },
+            { "required": ["dashboardMode"] }
+          ]
+        },
+        {
+          "anyOf": [
+            { "required": ["host_permissions"] },
+            { "required": ["hostPermissions"] }
+          ]
+        }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "default_provider": { "type": "string", "enum": ["singularity-compatible", "custom-url"] },
+        "defaultProvider": { "type": "string", "enum": ["singularity-compatible", "custom-url"] },
+        "dashboard_mode": { "type": "string", "enum": ["remote-http", "extension-local"] },
+        "dashboardMode": { "type": "string", "enum": ["remote-http", "extension-local"] },
+        "host_permissions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "hostPermissions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "build_output": { "type": "string" },
+        "buildOutput": { "type": "string" },
+        "inject_token": { "type": "boolean" },
+        "injectToken": { "type": "boolean" }
+      }
+    },
+    "protected_domains": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "protectedDomains": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "vmAccess": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["public_ip", "ssh_host", "ssh_user", "ssh_key_path"] },
+        { "required": ["publicIp", "sshHost", "sshUser", "sshKeyPath"] }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "public_ip": { "type": "string", "format": "ipv4" },
+        "ssh_host": { "type": "string", "minLength": 1 },
+        "ssh_user": { "type": "string", "minLength": 1 },
+        "ssh_key_path": { "type": "string", "minLength": 1 },
+        "publicIp": { "type": "string", "format": "ipv4" },
+        "sshHost": { "type": "string", "minLength": 1 },
+        "sshUser": { "type": "string", "minLength": 1 },
+        "sshKeyPath": { "type": "string", "minLength": 1 },
+        "cloud": { "type": "string", "enum": ["aws", "gcp", "local", "other"] },
+        "vm_name": { "type": "string" },
+        "vmName": { "type": "string" },
+        "resource_group": { "type": "string" },
+        "resourceGroup": { "type": "string" }
+      }
+    },
+    "dnsRecord": {
+      "type": "object",
+      "required": ["type", "name", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["A", "NS", "CNAME", "TXT"] },
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 },
+        "ttl": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

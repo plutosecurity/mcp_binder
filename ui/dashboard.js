@@ -469,15 +469,6 @@ async function openDashboardForFinding(finding) {
   const url = new URL("/ops", base.replace(/\/+$/, ""));
   url.searchParams.set("session", sessionId);
 
-  try {
-    const stored = await chrome.storage.local.get(["dashboardToken"]);
-    if (stored.dashboardToken) {
-      url.searchParams.set("token", stored.dashboardToken);
-    }
-  } catch {
-    // Dashboard page can still prompt for the token.
-  }
-
   await chrome.tabs.create({
     active: true,
     url: url.toString()

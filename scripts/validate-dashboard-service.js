@@ -4,8 +4,11 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 
 const token = "dashboard-test-token";
+const ingestToken = "dashboard-ingest-test-token";
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-binder-dashboard-"));
-const child = spawn("node", ["services/dashboard-server.js", "--host", "127.0.0.1", "--port", "0", "--token", token, "--evidence-dir", tempDir], {
+const missingIngestStartup = await expectDashboardStartupFailure(["services/dashboard-server.js", "--host", "127.0.0.1", "--port", "0", "--token", token, "--evidence-dir", tempDir]);
+assert(missingIngestStartup.includes("ingest token is required"), "dashboard fails closed when ingest token is missing");
+const child = spawn("node", ["services/dashboard-server.js", "--host", "127.0.0.1", "--port", "0", "--token", token, "--ingest-token", ingestToken, "--evidence-dir", tempDir], {
   cwd: process.cwd(),
   stdio: ["ignore", "pipe", "pipe"]
 });
@@ -21,6 +24,7 @@ try {
 
   const dashboard = await fetchText(`${baseUrl}/`);
   assertEqual(dashboard.status, 200, "dashboard root status");
+  assertCspNonce(dashboard, "dashboard root");
   assert(dashboard.body.includes("MCP Binder Dashboard"), "dashboard root has reference title");
   assert(dashboard.body.includes("DNS Rebinding Control"), "dashboard root uses reference control rail");
   assert(dashboard.body.includes("Attack Surface"), "dashboard root uses reference attack surface panel");
@@ -33,6 +37,7 @@ try {
 
   const ops = await fetchText(`${baseUrl}/ops`);
   assertEqual(ops.status, 200, "ops status");
+  assertCspNonce(ops, "ops page");
   assert(ops.body.includes("MCP Operations"), "ops uses the compact operations shell");
   assert(ops.body.includes("Captured MCP"), "ops has captured MCP title");
   assert(ops.body.includes("Control Channel"), "ops shows control channel status");
@@ -46,6 +51,10 @@ try {
   assert(ops.body.includes("Discovered MCP Tools"), "ops lists discovered tools");
   assert(ops.body.includes("Generated target profile"), "ops generates target profile");
   assert(ops.body.includes("Operation Timeline"), "ops shows operation timeline");
+  assert(!dashboard.body.includes("&token="), "dashboard does not put operator tokens in ops URLs");
+  assert(!dashboard.body.includes("token=\" + encodeURIComponent"), "dashboard does not build query-token ops links");
+  assert(!ops.body.includes("<pre>${pretty("), "ops does not inject unescaped pretty JSON into pre tags");
+  assert(!ops.body.includes("innerHTML = `${pretty("), "ops does not inject unescaped pretty JSON through innerHTML");
 
   const unauthorized = await fetchJson(`${baseUrl}/api/state`);
   assertEqual(unauthorized.status, 401, "unauthorized state status");
@@ -55,8 +64,22 @@ try {
   assert(Array.isArray(state.body.events), "state has events array");
   assertEqual(Object.keys(state.body.victims).length, 0, "initial victims empty");
 
+  const unauthenticatedVictim = await fetchJson(`${baseUrl}/api/victims`, {
+    method: "POST",
+    body: { id: "blocked-victim" }
+  });
+  assertEqual(unauthenticatedVictim.status, 401, "unauthenticated ingest is rejected when ingest token is configured");
+
+  const wrongIngestVictim = await fetchJson(`${baseUrl}/api/victims`, {
+    method: "POST",
+    ingestToken: "wrong-ingest-token",
+    body: { id: "blocked-victim" }
+  });
+  assertEqual(wrongIngestVictim.status, 401, "wrong ingest token is rejected");
+
   const victim = await fetchJson(`${baseUrl}/api/victims`, {
     method: "POST",
+    ingestToken,
     body: {
       id: "victim-1",
       displayName: "chrome-extension",
@@ -68,6 +91,7 @@ try {
 
   const session = await fetchJson(`${baseUrl}/api/sessions`, {
     method: "POST",
+    ingestToken,
     body: {
       id: "session-1",
       victimId: "victim-1",
@@ -81,6 +105,7 @@ try {
 
   const event = await fetchJson(`${baseUrl}/api/events`, {
     method: "POST",
+    ingestToken,
     body: {
       kind: "bridge.started",
       session: "session-1",
@@ -100,17 +125,26 @@ try {
   assertEqual(queued.status, 200, "queue task status");
   assertEqual(queued.body.task.kind, "tools/list", "queued task kind");
 
-  const task = await fetchJson(`${baseUrl}/api/tasks/session-1`);
+  const unauthenticatedTaskPoll = await fetchJson(`${baseUrl}/api/tasks/session-1`);
+  assertEqual(unauthenticatedTaskPoll.status, 401, "unauthenticated task polling is rejected when ingest token is configured");
+
+  const wrongIngestTaskPoll = await fetchJson(`${baseUrl}/api/tasks/session-1`, {
+    ingestToken: "wrong-ingest-token"
+  });
+  assertEqual(wrongIngestTaskPoll.status, 401, "wrong ingest token cannot poll tasks");
+
+  const task = await fetchJson(`${baseUrl}/api/tasks/session-1`, { ingestToken });
   assertEqual(task.status, 200, "take task status");
   assertEqual(task.body.task.kind, "tools/list", "taken task kind");
   assert(Boolean(task.body.task.claimedAt), "taken task is marked claimed");
 
-  const emptyTask = await fetchJson(`${baseUrl}/api/tasks/session-1`);
+  const emptyTask = await fetchJson(`${baseUrl}/api/tasks/session-1`, { ingestToken });
   assertEqual(emptyTask.status, 200, "empty task status");
   assertEqual(emptyTask.body.task, null, "only unclaimed task is returned");
 
   const result = await fetchJson(`${baseUrl}/api/results`, {
     method: "POST",
+    ingestToken,
     body: {
       session: "session-1",
       kind: "tools/list",
@@ -143,6 +177,19 @@ try {
   const clear = await fetchJson(`${baseUrl}/api/clear`, { method: "POST", token });
   assertEqual(clear.status, 200, "clear status");
   assertEqual(Object.keys(clear.body.victims).length, 0, "clear removes victims");
+
+  for (let i = 0; i < 205; i += 1) {
+    await fetchJson(`${baseUrl}/api/events`, {
+      method: "POST",
+      ingestToken,
+      body: {
+        kind: "flood",
+        payload: { i }
+      }
+    });
+  }
+  state = await fetchJson(`${baseUrl}/api/state`, { token });
+  assert(state.body.events.length <= 200, "event state is capped");
 
   console.log("dashboard service ok");
 } finally {
@@ -190,8 +237,49 @@ async function fetchText(url, options = {}) {
   });
   return {
     status: response.status,
+    headers: Object.fromEntries(response.headers.entries()),
     body: await response.text()
   };
+}
+
+function expectDashboardStartupFailure(args) {
+  return new Promise((resolve) => {
+    const processHandle = spawn("node", args, {
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      processHandle.kill("SIGTERM");
+      resolve(`${stdout}${stderr}dashboard stayed running`);
+    }, 1000);
+    processHandle.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    processHandle.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    processHandle.on("exit", () => {
+      clearTimeout(timeout);
+      resolve(`${stdout}${stderr}`);
+    });
+  });
+}
+
+function assertCspNonce(response, label) {
+  const csp = response.headers["content-security-policy"] || "";
+  const scriptNonces = [...response.body.matchAll(/<script nonce="([^"]+)">/g)].map((match) => match[1]);
+  assert(csp.includes("default-src 'self'"), `${label} CSP sets default-src`);
+  assert(csp.includes("object-src 'none'"), `${label} CSP blocks object embedding`);
+  assert(csp.includes("frame-ancestors 'none'"), `${label} CSP blocks framing`);
+  assert(csp.includes("script-src 'self' 'nonce-"), `${label} CSP uses script nonce`);
+  assert(!csp.includes("script-src 'self' 'unsafe-inline'"), `${label} CSP does not allow unsafe inline scripts`);
+  assert(scriptNonces.length > 0, `${label} has nonce-bearing scripts`);
+  assert(!/<script(?![^>]*\bnonce=)/.test(response.body), `${label} has no inline script without nonce`);
+  for (const nonce of scriptNonces) {
+    assert(csp.includes(`'nonce-${nonce}'`), `${label} CSP contains script nonce`);
+  }
 }
 
 async function fetchJson(url, options = {}) {
@@ -201,6 +289,10 @@ async function fetchJson(url, options = {}) {
 
   if (options.token) {
     headers.authorization = `Bearer ${options.token}`;
+  }
+
+  if (options.ingestToken) {
+    headers["x-mcp-binder-ingest-token"] = options.ingestToken;
   }
 
   if (options.body !== undefined) {

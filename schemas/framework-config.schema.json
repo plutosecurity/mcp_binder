@@ -67,7 +67,9 @@
             "token_env": { "type": "string" },
             "tokenEnv": { "type": "string" },
             "token_file": { "type": "string" },
-            "tokenFile": { "type": "string" }
+            "tokenFile": { "type": "string" },
+            "ingest_token_file": { "type": "string" },
+            "ingestTokenFile": { "type": "string" }
           }
         },
         "evidence_dir": { "type": "string" },

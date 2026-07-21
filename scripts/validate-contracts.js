@@ -51,6 +51,8 @@ validateFrameworkConfig(publicTemplate, "public framework template");
 validateFrameworkConfig(route53Example, "route53 example fixture");
 validateTargetProfile(tapo, "tapo target fixture");
 validateTargetProfile(streamable, "streamable target fixture");
+assert(!Object.prototype.hasOwnProperty.call(tapo, "exfil"), "tapo target fixture does not use legacy exfil endpoint");
+assert(!Object.prototype.hasOwnProperty.call(streamable, "exfil"), "streamable target fixture does not use legacy exfil endpoint");
 
 assertEqual(route53.dns.rebindDomain, "rebind.example.com", "route53 example rebind domain");
 assertEqual(route53.dns.dashboardFqdn, "dashboard.example.com", "route53 example dashboard fqdn");
@@ -216,6 +218,7 @@ function validateFrameworkCli() {
   assertEqual(extensionConfig.launcherPort, route53.singularity.launcherPort, "extension config launcher port");
   assertEqual(extensionConfig.tokenPolicy, "operator-input", "extension config token policy");
   assertEqual(extensionConfig.dashboardTokenFile, route53.dashboard.auth.tokenFile, "extension config token file");
+  assertEqual(extensionConfig.ingestTokenFile, "dist/mcp-binder-ingest-token", "extension config ingest token file");
   assert(extensionConfig.hostPermissions.includes(`http://*.${route53.dns.rebindDomain}/*`), "extension config includes rebind host permission");
   assertEqual(extensionConfig.dashboardBaseUrl, route53.dashboard.baseUrl, "extension config dashboard base URL");
 
@@ -262,11 +265,14 @@ function validateFrameworkCli() {
   assertEqual(runtimeConfig.rebindDomain, route53.dns.rebindDomain, "runtime config rebind domain");
   assertEqual(runtimeConfig.attackerIp, route53.attacker.publicIp, "runtime config attacker IP");
   assertEqual(runtimeConfig.launcherPort, route53.singularity.launcherPort, "runtime config launcher port");
+  assert(typeof runtimeConfig.ingestToken === "string" && runtimeConfig.ingestToken.length >= 32, "runtime config includes generated ingest token");
 
   const buildSummary = readJson(path.join(packOutputDir, "generated", "build-summary.json"));
   assertEqual(buildSummary.name, extensionConfig.name, "build summary name");
   assertEqual(buildSummary.rebindDomain, extensionConfig.rebindDomain, "build summary rebind domain");
   assertEqual(buildSummary.dashboardTokenFile, extensionConfig.dashboardTokenFile, "build summary token file");
+  assertEqual(buildSummary.ingestTokenFile, extensionConfig.ingestTokenFile, "build summary ingest token file");
+  assert(!Object.prototype.hasOwnProperty.call(buildSummary, "ingestToken"), "build summary does not expose ingest token value");
   assert(buildSummary.copiedFiles > 5, "build summary copied file count");
   const packTextOutput = runTextCli(["pack-extension", "--config", extensionConfigPath, "--out", path.join(tempDir, "packed-extension-text")]);
   assert(packTextOutput.includes(`Token file: ${extensionConfig.dashboardTokenFile}`), "pack-extension output prints token file path");
@@ -396,7 +402,16 @@ function validateFrameworkCli() {
   assert(!fs.readFileSync("framework-config.template.json", "utf8").toLowerCase().includes("attacker"), "public framework template avoids attacker wording");
   assert(readme.includes("dist/mcp-binder-dashboard-token"), "README documents the dashboard token path");
   assert(readme.includes("docs/cli.md"), "README links the CLI reference");
+  assert(readme.includes("docs/security-hardening.md"), "README links security hardening guidance");
+  assert(readme.includes("Use a TLS reverse proxy"), "README warns about HTTP dashboard deployments");
   assert(readme.includes("SECURITY.md"), "README links the security policy");
+  assert(fs.existsSync("docs/security-hardening.md"), "security hardening docs exist");
+  const hardeningDoc = fs.readFileSync("docs/security-hardening.md", "utf8");
+  assert(hardeningDoc.includes("Implemented Controls"), "security hardening docs list implemented controls");
+  assert(hardeningDoc.includes("Dashboard HTTP"), "security hardening docs cover HTTP dashboard risk");
+  assert(hardeningDoc.includes("TLS is not automatic yet"), "security hardening docs explain TLS tradeoff");
+  assert(hardeningDoc.includes("Wildcard CORS"), "security hardening docs track CORS residual risk");
+  assert(hardeningDoc.includes("Browser Token Storage"), "security hardening docs track token storage residual risk");
   const cliDoc = fs.readFileSync("docs/cli.md", "utf8");
   assert(cliDoc.includes("vm clean"), "CLI reference documents VM cleanup");
   assert(cliDoc.includes("--json"), "CLI reference documents JSON output");
@@ -436,6 +451,7 @@ function validateFrameworkCli() {
   ]);
   assert(extensionPackOutput.ok, "framework CLI extension pack returns ok");
   assertEqual(extensionPackOutput.summary.dashboardTokenFile, route53.dashboard.auth.tokenFile, "extension pack wrapper reports token file");
+  assertEqual(extensionPackOutput.summary.ingestTokenFile, "dist/mcp-binder-ingest-token", "extension pack wrapper reports ingest token file path");
   assert(fs.existsSync(path.join(extensionPackDir, "manifest.json")), "extension pack wrapper writes manifest");
   assert(fs.existsSync(path.join(extensionPackDir, "generated", "extension-build-config.json")), "extension pack wrapper writes generated config");
 
@@ -583,11 +599,16 @@ function validateFrameworkCli() {
   assert(dashboardSource.includes("dashboardLastResult"), "dashboard persists scan results across dashboard refreshes");
   assert(!dashboardSource.includes("customRebindUrlInput"), "dashboard does not persist runtime rebind infrastructure edits");
   assert(!dashboardSource.includes("chrome.tabs.create({ url }"), "dashboard does not launch raw rebind proof URLs in a tab");
+  assert(!dashboardSource.includes("searchParams.set(\"token\""), "dashboard does not put operator tokens into URLs");
   assert(offscreenSource.includes("mcpName"), "offscreen duplicate-bridge payload preserves MCP name");
+  assert(offscreenSource.includes("runtimeConfig.ingestToken"), "offscreen bridge reads ingest token from packed runtime config");
+  assert(offscreenSource.includes("takeDashboardTasks(baseUrl, sessionId, ingestToken)"), "offscreen bridge uses ingest token when polling tasks");
   assert(!dashboardSource.includes("chrome.tabs.remove(tabId"), "dashboard does not model proof stop as closing a tab");
 
   const dashboardServerSource = fs.readFileSync("services/dashboard-server.js", "utf8");
   assert(dashboardServerSource.includes("SNAP_BACK_INTERACTION_CSS"), "server dashboard ships shared snap-back CSS");
+  assert(!dashboardServerSource.includes("params.get(\"token\")"), "server dashboards do not accept operator tokens from URL parameters");
+  assert(!dashboardServerSource.includes("searchParams.get(\"token\")"), "server dashboards do not accept operator tokens from URL parameters");
   assert(dashboardServerSource.includes("SNAP_BACK_INTERACTION_SCRIPT"), "server dashboard ships shared snap-back JS");
   assert(dashboardServerSource.includes("attachServerSnapBackInteractions"), "server dashboard wires snap-back interactions");
   assert(dashboardServerSource.includes("contextmenu"), "server snap-back helper cancels stuck drags on context menu");

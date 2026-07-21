@@ -7,7 +7,6 @@
   "strategy": "fs",
   "pollMs": 800,
   "maxTries": 40,
-  "exfil": "http://dashboard.example.com:8090/c",
   "out": "payloads/sample-streamable-8081.html",
   "impact": {
     "summary": "Browser-originated control of a loopback MCP server that accepts rebound Host and Origin.",

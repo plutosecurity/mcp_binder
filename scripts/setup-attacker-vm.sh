@@ -21,6 +21,7 @@ Options:
   --http-ports RANGE         Singularity HTTP ports. Default: 8080-8089.
   --rebound-ip IP            IP returned after DNS flip. Default: 127.0.0.1.
   --dashboard-token TOKEN    Dashboard bearer token. Generated if omitted.
+  --ingest-token TOKEN       Dashboard ingest token. Generated if omitted.
   --clear-existing           Move any existing install to a timestamped backup first.
   --quiet                    Suppress success summary. Errors still print.
   --help                     Show this help.
@@ -45,6 +46,15 @@ require_value() {
   fi
 }
 
+validate_env_value() {
+  local value="$1"
+  local label="$2"
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    echo "$label must not contain control characters" >&2
+    exit 2
+  fi
+}
+
 PUBLIC_IP=""
 REBIND_DOMAIN=""
 DASHBOARD_DOMAIN=""
@@ -52,6 +62,7 @@ DASHBOARD_PORT="8090"
 HTTP_PORTS="8080-8089"
 REBOUND_IP="127.0.0.1"
 DASHBOARD_TOKEN="${MCP_BINDER_DASHBOARD_TOKEN:-}"
+INGEST_TOKEN="${MCP_BINDER_INGEST_TOKEN:-}"
 CLEAR_EXISTING="false"
 QUIET="false"
 
@@ -85,6 +96,10 @@ while [ "$#" -gt 0 ]; do
       DASHBOARD_TOKEN="${2:-}"
       shift 2
       ;;
+    --ingest-token)
+      INGEST_TOKEN="${2:-}"
+      shift 2
+      ;;
     --clear-existing)
       CLEAR_EXISTING="true"
       shift
@@ -108,6 +123,14 @@ done
 require_value "$PUBLIC_IP" "--public-ip is required"
 require_value "$REBIND_DOMAIN" "--rebind-domain is required"
 require_value "$DASHBOARD_DOMAIN" "--dashboard-domain is required"
+validate_env_value "$PUBLIC_IP" "--public-ip"
+validate_env_value "$REBIND_DOMAIN" "--rebind-domain"
+validate_env_value "$DASHBOARD_DOMAIN" "--dashboard-domain"
+validate_env_value "$DASHBOARD_PORT" "--dashboard-port"
+validate_env_value "$HTTP_PORTS" "--http-ports"
+validate_env_value "$REBOUND_IP" "--rebound-ip"
+validate_env_value "$DASHBOARD_TOKEN" "--dashboard-token"
+validate_env_value "$INGEST_TOKEN" "--ingest-token"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "setup-attacker-vm.sh must run as root" >&2
@@ -123,7 +146,9 @@ ENV_DIR="/etc/mcp_binder"
 ENV_FILE="$ENV_DIR/env"
 DASHBOARD_TOKEN_FILE="$ENV_DIR/dashboard-token"
 BACKUP_ROOT="/opt/mcp-binder-backups"
-GO_VERSION="${GO_VERSION:-1.22.4}"
+GO_VERSION="1.22.4"
+GO_SHA256="ba79d4526102575196273416239cca418a651e049c2b099f3159db85e7bade7d"
+SINGULARITY_REF="142daa66dca250edfac8ed06f4d6773af0f90ecc"
 PROGRESS_OFFSET="${MCP_BINDER_PROGRESS_OFFSET:-0}"
 PROGRESS_TOTAL="${MCP_BINDER_PROGRESS_TOTAL:-4}"
 
@@ -159,6 +184,17 @@ progress() {
 
 note() {
   printf '• %s\n' "$1"
+}
+
+generate_token() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 24
+  elif [ -r /dev/urandom ]; then
+    od -An -N24 -tx1 /dev/urandom | tr -d ' \n'
+  else
+    echo "cannot generate token: openssl is missing and /dev/urandom is unavailable" >&2
+    exit 1
+  fi
 }
 
 clear_existing_install() {
@@ -214,6 +250,7 @@ install_missing_packages() {
   add_package_if_missing missing_packages node nodejs
   add_package_if_missing missing_packages npm npm
   add_package_if_missing missing_packages python3 python3
+  add_package_if_missing missing_packages sha256sum coreutils
   add_package_if_missing missing_packages tar tar
 
   if [ "${#missing_packages[@]}" -eq 0 ]; then
@@ -247,12 +284,17 @@ add_package_if_missing() {
 }
 
 install_go() {
+  local go_archive
   if command -v go >/dev/null 2>&1; then
     return
   fi
 
   if [ ! -d /usr/local/go ]; then
-    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
+    go_archive="$(mktemp /tmp/mcp-binder-go.XXXXXX.tar.gz)"
+    curl -fsSL "https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz" -o "$go_archive"
+    echo "$GO_SHA256  $go_archive" | sha256sum -c - >/dev/null
+    tar -C /usr/local -xzf "$go_archive"
+    rm -f "$go_archive"
   fi
   ln -sf /usr/local/go/bin/go /usr/local/bin/go
   ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
@@ -270,10 +312,12 @@ install_singularity() {
     if [ -e "$SINGULARITY_ROOT" ]; then
       move_if_exists "$SINGULARITY_ROOT" "$SINGULARITY_ROOT.previous.$(date -u +%Y%m%dT%H%M%SZ)"
     fi
-    git clone --quiet --depth 1 https://github.com/nccgroup/singularity.git "$SINGULARITY_ROOT"
+    git clone --quiet --no-checkout https://github.com/nccgroup/singularity.git "$SINGULARITY_ROOT"
   fi
 
   cd "$SINGULARITY_ROOT"
+  git fetch --quiet --depth 1 origin "$SINGULARITY_REF"
+  git checkout --quiet --detach "$SINGULARITY_REF"
   go build -o /usr/local/bin/singularity-server ./cmd/singularity-server/
 }
 
@@ -310,11 +354,11 @@ write_runtime_env() {
   mkdir -p "$ENV_DIR" "$DASHBOARD_ROOT/evidence"
 
   if [ -z "$DASHBOARD_TOKEN" ]; then
-    if command -v openssl >/dev/null 2>&1; then
-      DASHBOARD_TOKEN="$(openssl rand -hex 24)"
-    else
-      DASHBOARD_TOKEN="token-$(date -u +%s)"
-    fi
+    DASHBOARD_TOKEN="$(generate_token)"
+  fi
+
+  if [ -z "$INGEST_TOKEN" ]; then
+    INGEST_TOKEN="$(generate_token)"
   fi
 
   printf '%s\n' "$DASHBOARD_TOKEN" > "$DASHBOARD_TOKEN_FILE"
@@ -331,6 +375,7 @@ MCP_BINDER_EVIDENCE_DIR=$DASHBOARD_ROOT/evidence
 MCP_BINDER_HTTP_PORTS=$HTTP_PORTS
 MCP_BINDER_RESPONSE_REBOUND_IP=$REBOUND_IP
 MCP_BINDER_DASHBOARD_TOKEN=$DASHBOARD_TOKEN
+MCP_BINDER_INGEST_TOKEN=$INGEST_TOKEN
 ENV
   chmod 0600 "$ENV_FILE"
 }

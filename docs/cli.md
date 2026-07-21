@@ -62,6 +62,14 @@ The local dashboard token file is:
 dist/mcp-binder-dashboard-token
 ```
 
+The packed extension also receives an ingest token from:
+
+```text
+dist/mcp-binder-ingest-token
+```
+
+The ingest token is used automatically by the bridge when it reports sessions and results to the dashboard, and when it polls queued operations for a captured MCP session.
+
 ## VM Deploy
 
 Preview:
@@ -128,4 +136,3 @@ Use this when the VM and DNS already exist and you only need a deployment-specif
 ## Compatibility Aliases
 
 `attacker deploy`, `attacker verify`, and `attacker clean` still exist for older automation. New docs and examples use `vm`.
-

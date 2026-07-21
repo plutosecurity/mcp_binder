@@ -73,6 +73,8 @@ The command also prints the dashboard token file path. The default is:
 dist/mcp-binder-dashboard-token
 ```
 
+The extension packer also creates `dist/mcp-binder-ingest-token`. The packed extension uses it to report victim sessions and MCP results to the dashboard. Operators normally do not paste this token.
+
 Use the older `pack-extension` alias only for compatibility. The supported command is `extension pack`.
 
 ## Choosing Singularity Ports
@@ -121,11 +123,24 @@ In that case, check both `singularity.http_ports` and the VM inbound rules befor
 
 The dashboard token is stored at `dist/mcp-binder-dashboard-token` unless the config overrides it. The token protects the dashboard and operator console. Anyone with dashboard access but no token cannot queue MCP commands or inspect captured sessions through the operator API.
 
+The ingest token is stored at `dist/mcp-binder-ingest-token`. It protects dashboard ingestion endpoints used by the packed extension. Treat it as internal lab material, not an operator login token.
+
+The dashboard fails closed when the ingest token is missing. Normal deployment commands generate it automatically, pass it to the VM, and pack it into the extension runtime config.
+
 The VM installer also writes the runtime copy to:
 
 ```text
 /etc/mcp_binder/dashboard-token
 ```
+
+## Runtime Pinning
+
+The VM installer pins the DNS-rebinding runtime inputs used during setup:
+
+- Go `1.22.4` is downloaded from `dl.google.com` and verified with a hardcoded SHA-256 checksum before extraction.
+- Singularity is checked out at commit `142daa66dca250edfac8ed06f4d6773af0f90ecc` before building `singularity-server`.
+
+This keeps fresh VM setup reproducible and prevents accidental drift to a changed upstream runtime.
 
 ## Load The Extension
 

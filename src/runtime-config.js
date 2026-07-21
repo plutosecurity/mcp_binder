@@ -43,6 +43,7 @@ function normalizeRuntimeConfig(config = {}) {
     defaultProvider: String(config.defaultProvider || "singularity-compatible"),
     launcherPort: Number(config.launcherPort || 8080),
     hostPermissions: Array.isArray(config.hostPermissions) ? config.hostPermissions : [],
+    ingestToken: String(config.ingestToken || ""),
     tokenPolicy: String(config.tokenPolicy || "none")
   };
 }

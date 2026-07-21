@@ -25,6 +25,7 @@ Options:
   --rebound-ip IP           IP returned after DNS flip. Default: 127.0.0.1.
   --dashboard-token TOKEN   Dashboard bearer token.
   --dashboard-token-file F  Read or create dashboard bearer token file. Default: dist/mcp-binder-dashboard-token.
+  --ingest-token-file F     Read or create dashboard ingest token file. Default: dist/mcp-binder-ingest-token.
   --clear-existing          Move existing VM runtime to backup before reinstalling.
   --help                    Show this help.
 USAGE
@@ -75,28 +76,47 @@ clear_arg() {
 }
 
 ensure_dashboard_token() {
-  if [ -n "$DASHBOARD_TOKEN" ]; then
-    mkdir -p "$(dirname "$DASHBOARD_TOKEN_FILE")"
-    if [ ! -f "$DASHBOARD_TOKEN_FILE" ]; then
-      printf '%s\n' "$DASHBOARD_TOKEN" > "$DASHBOARD_TOKEN_FILE"
-      chmod 0600 "$DASHBOARD_TOKEN_FILE"
+  DASHBOARD_TOKEN="$(ensure_token_file "$DASHBOARD_TOKEN_FILE" "$DASHBOARD_TOKEN")"
+}
+
+ensure_ingest_token() {
+  INGEST_TOKEN="$(ensure_token_file "$INGEST_TOKEN_FILE" "$INGEST_TOKEN")"
+}
+
+ensure_token_file() {
+  local token_file="$1"
+  local token_value="$2"
+  if [ -n "$token_value" ]; then
+    mkdir -p "$(dirname "$token_file")"
+    if [ ! -f "$token_file" ]; then
+      printf '%s\n' "$token_value" > "$token_file"
+      chmod 0600 "$token_file"
     fi
+    printf '%s' "$token_value"
     return
   fi
 
-  if [ -f "$DASHBOARD_TOKEN_FILE" ]; then
-    DASHBOARD_TOKEN="$(tr -d '\n' < "$DASHBOARD_TOKEN_FILE")"
+  if [ -f "$token_file" ]; then
+    tr -d '\n' < "$token_file"
     return
   fi
 
-  mkdir -p "$(dirname "$DASHBOARD_TOKEN_FILE")"
+  mkdir -p "$(dirname "$token_file")"
+  token_value="$(generate_token)"
+  printf '%s\n' "$token_value" > "$token_file"
+  chmod 0600 "$token_file"
+  printf '%s' "$token_value"
+}
+
+generate_token() {
   if command -v openssl >/dev/null 2>&1; then
-    DASHBOARD_TOKEN="$(openssl rand -hex 24)"
+    openssl rand -hex 24
+  elif [ -r /dev/urandom ]; then
+    od -An -N24 -tx1 /dev/urandom | tr -d ' \n'
   else
-    DASHBOARD_TOKEN="token-$(date -u +%s)"
+    echo "cannot generate token: openssl is missing and /dev/urandom is unavailable" >&2
+    exit 1
   fi
-  printf '%s\n' "$DASHBOARD_TOKEN" > "$DASHBOARD_TOKEN_FILE"
-  chmod 0600 "$DASHBOARD_TOKEN_FILE"
 }
 
 mk_remote_dir() {
@@ -131,6 +151,7 @@ sudo -E bash $remote_setup \\
   --http-ports $(shell_quote "$HTTP_PORTS") \\
   --rebound-ip $(shell_quote "$REBOUND_IP") \\
   --dashboard-token $(shell_quote "$DASHBOARD_TOKEN") \\
+  --ingest-token $(shell_quote "$INGEST_TOKEN") \\
   --quiet $(clear_arg)
 rm -rf $(shell_quote "$REMOTE_DIR")
 REMOTE
@@ -151,6 +172,8 @@ HTTP_PORTS="8080-8089"
 REBOUND_IP="127.0.0.1"
 DASHBOARD_TOKEN=""
 DASHBOARD_TOKEN_FILE="dist/mcp-binder-dashboard-token"
+INGEST_TOKEN=""
+INGEST_TOKEN_FILE="dist/mcp-binder-ingest-token"
 CLEAR_EXISTING="false"
 
 while [ "$#" -gt 0 ]; do
@@ -207,6 +230,10 @@ while [ "$#" -gt 0 ]; do
       DASHBOARD_TOKEN_FILE="${2:-}"
       shift 2
       ;;
+    --ingest-token-file)
+      INGEST_TOKEN_FILE="${2:-}"
+      shift 2
+      ;;
     --clear-existing)
       CLEAR_EXISTING="true"
       shift
@@ -228,6 +255,7 @@ require_value "$PUBLIC_IP" "--public-ip is required"
 require_value "$REBIND_DOMAIN" "--rebind-domain is required"
 require_value "$DASHBOARD_DOMAIN" "--dashboard-domain is required"
 require_value "$DASHBOARD_TOKEN_FILE" "--dashboard-token-file cannot be empty"
+require_value "$INGEST_TOKEN_FILE" "--ingest-token-file cannot be empty"
 validate_remote_path "$REMOTE_DIR" "--remote-dir"
 
 require_command ssh
@@ -249,6 +277,7 @@ if [ -n "$IDENTITY_FILE" ]; then
 fi
 
 ensure_dashboard_token
+ensure_ingest_token
 
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/mcp-binder-ssh.XXXXXX")"
 SETUP_FILE="$TMP_ROOT/setup-attacker-vm.sh"

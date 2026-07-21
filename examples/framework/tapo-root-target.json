@@ -7,7 +7,6 @@
   "strategy": "fs",
   "pollMs": 800,
   "maxTries": 120,
-  "exfil": "http://dashboard.example.com:8090/c",
   "out": "payloads/tapo-root-8082.html",
   "impact": {
     "summary": "A rebound browser session can operate the victim's local Tapo MCP server and control or inspect configured smart-home devices.",

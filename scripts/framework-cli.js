@@ -3,6 +3,7 @@ import dns from "node:dns/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 
 const rawArgs = process.argv.slice(2);
 const outputJson = rawArgs.includes("--json");
@@ -393,9 +394,11 @@ function normalizeFrameworkConfig(raw) {
         mode: "bearer-token",
         tokenEnv: "MCP_BINDER_DASHBOARD_TOKEN",
         tokenFile: "dist/mcp-binder-dashboard-token",
+        ingestTokenFile: "dist/mcp-binder-ingest-token",
         ...rawDashboardAuth,
         tokenEnv: firstDefined(rawDashboardAuth.tokenEnv, rawDashboardAuth.token_env, "MCP_BINDER_DASHBOARD_TOKEN"),
-        tokenFile: firstDefined(rawDashboardAuth.tokenFile, rawDashboardAuth.token_file, "dist/mcp-binder-dashboard-token")
+        tokenFile: firstDefined(rawDashboardAuth.tokenFile, rawDashboardAuth.token_file, "dist/mcp-binder-dashboard-token"),
+        ingestTokenFile: firstDefined(rawDashboardAuth.ingestTokenFile, rawDashboardAuth.ingest_token_file, "dist/mcp-binder-ingest-token")
       }
     },
     singularity: {
@@ -509,7 +512,20 @@ function validateExtensionConfig(config) {
   assert(config.hostPermissions.length > 0, "extension build config hostPermissions must not be empty");
 }
 
+function readOrCreateTokenFile(file) {
+  const target = expandHome(file || "dist/mcp-binder-ingest-token");
+  if (fs.existsSync(target)) {
+    return fs.readFileSync(target, "utf8").trim();
+  }
+  const token = randomBytes(24).toString("hex");
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${token}\n`, { mode: 0o600 });
+  fs.chmodSync(target, 0o600);
+  return token;
+}
+
 function deriveExtensionConfig(config) {
+  const ingestTokenFile = config.dashboard.auth.ingestTokenFile || "dist/mcp-binder-ingest-token";
   return {
     name: config.extension.name,
     version: config.frameworkVersion,
@@ -523,6 +539,8 @@ function deriveExtensionConfig(config) {
     hostPermissions: [...config.extension.hostPermissions],
     tokenPolicy: config.dashboard.auth.mode === "bearer-token" ? "operator-input" : "none",
     dashboardTokenFile: config.dashboard.auth.tokenFile || "",
+    ingestTokenFile,
+    ingestToken: readOrCreateTokenFile(ingestTokenFile),
     protectedDomains: [...(config.protectedDomains || [])]
   };
 }
@@ -693,6 +711,7 @@ function packExtension(extensionConfig, outDir) {
     rebindDomain: extensionConfig.rebindDomain,
     dashboardUrl: extensionConfig.dashboardUrl,
     dashboardTokenFile: extensionConfig.dashboardTokenFile || "",
+    ingestTokenFile: extensionConfig.ingestTokenFile || "",
     copiedFiles
   };
   writeJson(path.join(generatedDir, "build-summary.json"), buildSummary);
@@ -1101,6 +1120,8 @@ function attackerDeployArgs(config, extraArgs = []) {
     config.singularity.responseReboundIp || "127.0.0.1",
     "--dashboard-token-file",
     config.dashboard.auth.tokenFile || "dist/mcp-binder-dashboard-token",
+    "--ingest-token-file",
+    config.dashboard.auth.ingestTokenFile || "dist/mcp-binder-ingest-token",
     ...extraArgs
   ]);
 }
@@ -1196,6 +1217,7 @@ function buildRuntimeConfig(extensionConfig) {
     launcherPort: extensionConfig.launcherPort,
     hostPermissions: extensionConfig.hostPermissions,
     scannerHostPermissions: scannerHostPermissions(),
+    ingestToken: extensionConfig.ingestToken || "",
     tokenPolicy: extensionConfig.tokenPolicy || "none"
   };
 }

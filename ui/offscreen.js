@@ -75,7 +75,7 @@ async function startBridge(payload = {}) {
     throw new Error("Remote dashboard is not configured. Pack the extension with a dashboardBaseUrl before launching DNS rebind proof.");
   }
 
-  const dashboard = remoteDashboardProxy(dashboardBaseUrl);
+  const dashboard = remoteDashboardProxy(dashboardBaseUrl, runtimeConfig.ingestToken);
   const descriptor = payload.descriptor;
   const sessionId = `bridge-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 8)}`;
   const controller = new AbortController();
@@ -270,22 +270,22 @@ function mcpNameFromFinding(finding) {
   ].filter(Boolean).join(" ") || finding?.baseUrl || `${finding?.target || "local"}:${finding?.port || "unknown"}`;
 }
 
-function remoteDashboardProxy(baseUrl) {
+function remoteDashboardProxy(baseUrl, ingestToken = "") {
   return {
     registerVictim(value) {
-      return registerDashboardVictim(baseUrl, value);
+      return registerDashboardVictim(baseUrl, value, ingestToken);
     },
     registerSession(value) {
-      return registerDashboardSession(baseUrl, value);
+      return registerDashboardSession(baseUrl, value, ingestToken);
     },
     recordEvent(value) {
-      return recordDashboardEvent(baseUrl, value);
+      return recordDashboardEvent(baseUrl, value, ingestToken);
     },
     recordResult(value) {
-      return recordDashboardResult(baseUrl, value);
+      return recordDashboardResult(baseUrl, value, ingestToken);
     },
     takeTasks(sessionId) {
-      return takeDashboardTasks(baseUrl, sessionId);
+      return takeDashboardTasks(baseUrl, sessionId, ingestToken);
     }
   };
 }

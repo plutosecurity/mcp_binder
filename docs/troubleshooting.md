@@ -64,6 +64,7 @@ Expected:
 - The launcher returns an HTML response.
 - The dashboard health endpoint returns `200 OK`.
 - If the VM responds locally but not from your browser, fix inbound network rules or the host firewall.
+- If the dashboard service exits immediately, verify that `/etc/mcp_binder/env` contains `MCP_BINDER_INGEST_TOKEN`. The normal deploy flow creates it automatically.
 
 ## 5. Dashboard Token
 

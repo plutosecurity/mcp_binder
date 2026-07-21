@@ -96,7 +96,10 @@ node scripts/framework-cli.js bootstrap \
   --clear-existing
 ```
 
-The dashboard token is stored at `dist/mcp-binder-dashboard-token` unless you override it in the config. The token gates the dashboard and operator console so another user who finds the dashboard URL cannot queue MCP commands or read captured sessions.
+The dashboard token is stored at `dist/mcp-binder-dashboard-token` unless you override it in the config. The token gates the dashboard and operator console so another user who finds the dashboard URL cannot queue MCP commands or read captured sessions. The deploy flow also creates an internal ingest token for the packed extension. The dashboard will not start without that ingest token in normal mode.
+
+> [!WARNING]
+> The default dashboard is served over HTTP to keep the first lab setup provider-neutral. Restrict dashboard inbound access to your operator network. Use a TLS reverse proxy for shared, public, or long-lived labs. See [Security Hardening](docs/security-hardening.md).
 
 If the lab build fails, use [Troubleshooting](docs/troubleshooting.md) to test DNS, SSH, VM services, dashboard access, and extension packing one module at a time.
 
@@ -121,6 +124,7 @@ For the full setup flow, read [docs/deployment.md](docs/deployment.md). For conf
 | [Operation](docs/operation.md) | Scanner behavior, DNS rebinding attack flow, dashboard, and operator console. |
 | [CLI Reference](docs/cli.md) | Supported commands and common options. |
 | [Troubleshooting](docs/troubleshooting.md) | Test config, DNS, SSH, VM services, dashboard, and extension packing one module at a time. |
+| [Security Hardening](docs/security-hardening.md) | Implemented controls, HTTP dashboard risk, TLS guidance, and residual hardening notes. |
 | [Security Policy](SECURITY.md) | How to report vulnerabilities in MCP Binder itself. |
 
 ## License

@@ -16,6 +16,8 @@
     "defaultProvider": { "type": "string", "enum": ["singularity-compatible", "custom-url"] },
     "launcherPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
     "dashboardTokenFile": { "type": "string" },
+    "ingestTokenFile": { "type": "string" },
+    "ingestToken": { "type": "string" },
     "hostPermissions": {
       "type": "array",
       "items": { "type": "string" },

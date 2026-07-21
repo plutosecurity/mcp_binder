@@ -1,12 +1,15 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 
 const args = process.argv.slice(2);
 const options = {
   host: getOption(args, "--host") || process.env.MCP_BINDER_DASHBOARD_HOST || "0.0.0.0",
   port: Number(getOption(args, "--port") || process.env.MCP_BINDER_DASHBOARD_PORT || 8090),
   token: getOption(args, "--token") || process.env.MCP_BINDER_DASHBOARD_TOKEN || "",
+  ingestToken: getOption(args, "--ingest-token") || process.env.MCP_BINDER_INGEST_TOKEN || "",
+  allowUnauthenticatedIngest: args.includes("--allow-unauthenticated-ingest") || process.env.MCP_BINDER_ALLOW_UNAUTHENTICATED_INGEST === "1",
   evidenceDir: getOption(args, "--evidence-dir") || process.env.MCP_BINDER_EVIDENCE_DIR || "/tmp/mcp-binder-evidence",
   publicIp: process.env.MCP_BINDER_PUBLIC_IP || "127.0.0.1",
   rebindDomain: process.env.MCP_BINDER_REBIND_DOMAIN || "rebind.example.com",
@@ -16,6 +19,14 @@ const options = {
   defaultTargetPort: Number(process.env.MCP_BINDER_DEFAULT_TARGET_PORT || 8086),
   defaultStrategy: process.env.MCP_BINDER_STRATEGY || "fs",
   defaultPayloadPath: process.env.MCP_BINDER_DEFAULT_PAYLOAD_PATH || "payloads/victim-launcher.html"
+};
+
+const STATE_LIMITS = {
+  events: 200,
+  results: 200,
+  sessions: 100,
+  victims: 100,
+  tasksPerSession: 50
 };
 
 const SNAP_BACK_INTERACTION_CSS = `
@@ -223,6 +234,11 @@ function attachServerSnapBackInteractions() {
 `;
 
 const state = createState();
+if (!options.ingestToken && !options.allowUnauthenticatedIngest) {
+  console.error("ingest token is required. Set MCP_BINDER_INGEST_TOKEN or pass --ingest-token.");
+  process.exit(1);
+}
+
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((error) => {
     json(res, 500, {
@@ -300,27 +316,42 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === "POST" && pathname === "/api/victims") {
+    if (!authorizeIngest(req, res)) {
+      return;
+    }
     json(res, 200, registerVictim(await readJsonBody(req)));
     return;
   }
 
   if (req.method === "POST" && pathname === "/api/sessions") {
+    if (!authorizeIngest(req, res)) {
+      return;
+    }
     json(res, 200, registerSession(await readJsonBody(req)));
     return;
   }
 
   if (req.method === "POST" && pathname === "/api/events") {
+    if (!authorizeIngest(req, res)) {
+      return;
+    }
     json(res, 200, recordEvent(await readJsonBody(req)));
     return;
   }
 
   if (req.method === "POST" && pathname === "/api/results") {
+    if (!authorizeIngest(req, res)) {
+      return;
+    }
     json(res, 200, recordResult(await readJsonBody(req)));
     return;
   }
 
   const taskMatch = pathname.match(/^\/api\/tasks\/([^/]+)$/);
   if (taskMatch && req.method === "GET") {
+    if (!authorizeIngest(req, res)) {
+      return;
+    }
     json(res, 200, takeTasks(decodeURIComponent(taskMatch[1])));
     return;
   }
@@ -334,6 +365,9 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === "POST" && pathname === "/c") {
+    if (!authorizeIngest(req, res)) {
+      return;
+    }
     const payload = await readJsonBody(req);
     const result = recordEvent({
       kind: "legacy.dashboard",
@@ -388,6 +422,7 @@ function registerVictim(payload = {}) {
     ports: unique([...(existing.ports || []), ...(payload.ports || [])])
   };
   state.victims[id] = victim;
+  pruneObjectByAge(state.victims, STATE_LIMITS.victims);
   return clone(victim);
 }
 
@@ -403,6 +438,7 @@ function registerSession(payload = {}) {
     lastSeen: now
   };
   state.sessions[id] = session;
+  pruneObjectByAge(state.sessions, STATE_LIMITS.sessions);
 
   if (session.victimId && !state.victims[session.victimId]) {
     state.victims[session.victimId] = {
@@ -432,6 +468,7 @@ function recordEvent(payload = {}) {
     ...payload
   };
   state.events.push(event);
+  trimArray(state.events, STATE_LIMITS.events);
   return clone(event);
 }
 
@@ -442,6 +479,7 @@ function recordResult(payload = {}) {
     ...payload
   };
   state.results.push(result);
+  trimArray(state.results, STATE_LIMITS.results);
   return clone(result);
 }
 
@@ -457,6 +495,7 @@ function queueTask(sessionId, payload = {}) {
     name: payload.name || ""
   };
   state.tasks[sessionId] = [...(state.tasks[sessionId] || []), task];
+  trimArray(state.tasks[sessionId], STATE_LIMITS.tasksPerSession);
   recordEvent({
     kind: "task-created",
     payload: {
@@ -465,6 +504,26 @@ function queueTask(sessionId, payload = {}) {
     }
   });
   return { task: clone(task) };
+}
+
+function trimArray(items, maxItems) {
+  if (!Array.isArray(items) || items.length <= maxItems) {
+    return;
+  }
+  items.splice(0, items.length - maxItems);
+}
+
+function pruneObjectByAge(items, maxItems) {
+  const entries = Object.entries(items || {});
+  if (entries.length <= maxItems) {
+    return;
+  }
+  entries
+    .sort(([, a], [, b]) => String(a.lastSeen || a.firstSeen || "").localeCompare(String(b.lastSeen || b.firstSeen || "")))
+    .slice(0, entries.length - maxItems)
+    .forEach(([key]) => {
+      delete items[key];
+    });
 }
 
 function takeTasks(sessionId) {
@@ -577,6 +636,19 @@ function authorize(req, res) {
   return false;
 }
 
+function authorizeIngest(req, res) {
+  if (!options.ingestToken) {
+    return true;
+  }
+
+  if (req.headers["x-mcp-binder-ingest-token"] === options.ingestToken) {
+    return true;
+  }
+
+  json(res, 401, { error: "unauthorized ingest" });
+  return false;
+}
+
 async function readJsonBody(req) {
   const text = await new Promise((resolve, reject) => {
     let body = "";
@@ -608,12 +680,36 @@ function json(res, status, body) {
 }
 
 function html(res, status, body) {
+  const nonce = createCspNonce();
+  const securedBody = applyScriptNonce(body, nonce);
   setCorsHeaders(res);
   res.writeHead(status, {
     "content-type": "text/html; charset=utf-8",
-    "cache-control": "no-store"
+    "cache-control": "no-store",
+    "content-security-policy": contentSecurityPolicy(nonce)
   });
-  res.end(body);
+  res.end(securedBody);
+}
+
+function createCspNonce() {
+  return randomBytes(16).toString("base64");
+}
+
+function applyScriptNonce(body, nonce) {
+  return String(body).replace(/<script(?![^>]*\bnonce=)/g, `<script nonce="${nonce}"`);
+}
+
+function contentSecurityPolicy(nonce) {
+  return [
+    "default-src 'self'",
+    "base-uri 'none'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self'"
+  ].join("; ");
 }
 
 function renderDashboard() {
@@ -765,7 +861,7 @@ const counts = {
   tasks: document.querySelector("#tasks")
 };
 
-tokenInput.value = localStorage.getItem("mcp-binder.dashboard.token") || new URL(location.href).searchParams.get("token") || "";
+tokenInput.value = localStorage.getItem("mcp-binder.dashboard.token") || "";
 tokenInput.addEventListener("input", () => localStorage.setItem("mcp-binder.dashboard.token", tokenInput.value));
 document.querySelector("#refresh").addEventListener("click", refresh);
 document.querySelector("#clear").addEventListener("click", clearState);
@@ -1150,7 +1246,7 @@ ${SNAP_BACK_INTERACTION_CSS}
 </main>
 <script>
 const tokenRequired = ${options.token ? "true" : "false"};
-let token = localStorage.getItem("mcpRebindToken") || new URLSearchParams(location.search).get("token") || "";
+let token = localStorage.getItem("mcpRebindToken") || "";
 let sessionsCache = [];
 let victimsCache = [];
 let resultsCache = [];
@@ -1262,7 +1358,7 @@ function sessionReady(s) {
 function renderCandidate(s) {
   const st = String(s.status || "connected");
   const tools = discoveredToolsForSession(s);
-  const opsUrl = "/ops?session=" + encodeURIComponent(s.id) + (token ? "&token=" + encodeURIComponent(token) : "");
+  const opsUrl = "/ops?session=" + encodeURIComponent(s.id);
   return '<div class="candidate ready">' +
     '<div class="row-title"><strong>' + esc(sessionTarget(s)) + '</strong><small>port ' + esc(sessionPort(s)) + '</small></div>' +
     '<small>' + esc(s.clientIp || "unknown ip") + ' · ' + esc(s.transport || "streamable") + ' · <span class="status-ok">' + esc(st) + '</span>' + (tools.length ? " · " + tools.length + " tools" : "") + '</small>' +
@@ -1706,7 +1802,7 @@ ${SNAP_BACK_INTERACTION_CSS}
 <script>
 const tokenRequired = ${options.token ? "true" : "false"};
 const params = new URLSearchParams(location.search);
-let token = localStorage.getItem("mcpRebindToken") || params.get("token") || "";
+let token = localStorage.getItem("mcpRebindToken") || "";
 let requestedSession = params.get("session") || "";
 let state = null;
 let activeTaskIndex = -1;
@@ -2165,7 +2261,7 @@ function renderResults(s) {
     return \`<div class="\${cls}" data-scroll-key="\${esc(key)}">
       <div class="result-meta"><strong>\${esc(title)}</strong><small>\${esc(item.ts || "")}</small></div>
       <small>\${esc(t ? ((t.kind || "") + (t.tool ? " · " + t.tool : "")) : ((r && r.origin) || ""))}</small>
-      <pre data-scroll-key="\${esc(key + ":pre")}">\${pretty(body)}</pre>
+      <pre data-scroll-key="\${esc(key + ":pre")}">\${esc(pretty(body))}</pre>
       \${actions}
     </div>\`;
   }).join("") || "<p>No non-enumeration commands or MCP responses for this session yet.</p>";
@@ -2458,8 +2554,8 @@ function renderStatus(s) {
 function renderTimeline(s) {
   const rows = timelineRows(s);
   document.getElementById("timeline").innerHTML = rows.map(r => \`<div class="row">
-    <div class="row-title"><strong>\${r.title}</strong><small>\${r.ts || ""}</small></div>
-    <pre>\${pretty(r.detail)}</pre>
+    <div class="row-title"><strong>\${esc(r.title)}</strong><small>\${esc(r.ts || "")}</small></div>
+    <pre>\${esc(pretty(r.detail))}</pre>
   </div>\`).join("") || "<p>No events for this session.</p>";
 }
 function taskFromEditor() {
@@ -2505,7 +2601,7 @@ function render() {
   document.getElementById("targetSummary").textContent = profile.impact && profile.impact.summary ? profile.impact.summary : "Operate the captured MCP through the rebound browser session.";
   document.getElementById("sessionStatus").textContent = s.status || "";
   document.getElementById("sessionStatus").className = String(s.status || "").includes("error") ? "status-bad" : "status-ok";
-  document.getElementById("sessionMeta").innerHTML = \`<small>\${s.origin || ""} · \${age(s.lastSeen)}</small><pre>\${pretty(s.meta || {})}</pre>\`;
+  document.getElementById("sessionMeta").innerHTML = \`<small>\${esc(s.origin || "")} · \${esc(age(s.lastSeen))}</small><pre>\${esc(pretty(s.meta || {}))}</pre>\`;
   const tasks = currentTasks();
   const toolSelect = document.getElementById("toolSelect");
   const args = document.getElementById("toolArgs");
@@ -2650,7 +2746,7 @@ function escapeScript(value) {
 function setCorsHeaders(res) {
   res.setHeader("access-control-allow-origin", "*");
   res.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
-  res.setHeader("access-control-allow-headers", "content-type,authorization");
+  res.setHeader("access-control-allow-headers", "content-type,authorization,x-mcp-binder-ingest-token");
 }
 
 function getOption(argv, option) {

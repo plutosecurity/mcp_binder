@@ -31,6 +31,7 @@ for (const flag of [
   "--dashboard-domain",
   "--dashboard-port",
   "--http-ports",
+  "--ingest-token",
   "--clear-existing"
 ]) {
   assert(setup.includes(flag), `setup script exposes ${flag}`);
@@ -42,10 +43,13 @@ for (const expected of [
   "MCP_BINDER_REBIND_DOMAIN",
   "MCP_BINDER_DASHBOARD_FQDN",
   "MCP_BINDER_PUBLIC_IP",
+  "MCP_BINDER_INGEST_TOKEN",
   "services/dashboard-server.js",
   "payloads/victim-launcher.html",
   "DASHBOARD_SERVER_GZ_B64",
   "DASHBOARD_TOKEN_FILE",
+  "SINGULARITY_REF",
+  "GO_SHA256",
   "Token file:",
   "progress 1 \"Installing system packages\"",
   "progress 2 \"Building Singularity runtime\"",
@@ -63,6 +67,15 @@ for (const expected of [
 }
 assert(!setup.includes("dnf install -y -q ca-certificates curl git gzip nodejs npm python3 tar"), "dnf install does not force full curl over curl-minimal");
 assert(!setup.includes("yum install -y -q ca-certificates curl git gzip nodejs npm python3 tar"), "yum install does not force full curl over curl-minimal");
+assert(setup.includes("openssl rand -hex 24"), "setup script generates strong dashboard token when openssl exists");
+assert(setup.includes("/dev/urandom"), "setup script uses /dev/urandom when openssl is unavailable");
+assert(!setup.includes("DASHBOARD_TOKEN=\"token-$(date -u +%s)\""), "setup script does not fall back to predictable timestamp tokens");
+assert(setup.includes("SINGULARITY_REF=\"142daa66dca250edfac8ed06f4d6773af0f90ecc\""), "setup script pins Singularity to a reviewed commit");
+assert(setup.includes("git fetch --quiet --depth 1 origin \"$SINGULARITY_REF\""), "setup script fetches only the pinned Singularity ref");
+assert(setup.includes("git checkout --quiet --detach \"$SINGULARITY_REF\""), "setup script checks out Singularity in detached pinned state");
+assert(setup.includes("GO_SHA256=\"ba79d4526102575196273416239cca418a651e049c2b099f3159db85e7bade7d\""), "setup script pins the Go archive checksum");
+assert(setup.includes("sha256sum -c"), "setup script verifies the Go archive checksum before extraction");
+assert(!setup.includes("curl -fsSL \"https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz\" | tar"), "setup script does not pipe unverified Go downloads into tar");
 
 for (const flag of [
   "--purge-backups",
@@ -96,6 +109,7 @@ for (const flag of [
   "--rebind-domain",
   "--dashboard-domain",
   "--dashboard-token-file",
+  "--ingest-token-file",
   "--clear-existing"
 ]) {
   assert(sshDeploy.includes(flag), `ssh deploy script exposes ${flag}`);
@@ -107,7 +121,9 @@ for (const expected of [
   "mk_remote_dir",
   "validate_remote_path",
   "ensure_dashboard_token",
+  "ensure_ingest_token",
   "dist/mcp-binder-dashboard-token",
+  "dist/mcp-binder-ingest-token",
   "DASHBOARD_SERVER_GZ_B64",
   "UI_ARCHIVE_B64",
   "MCP_BINDER_PROGRESS_OFFSET=2",
@@ -119,6 +135,9 @@ for (const expected of [
   assert(sshDeploy.includes(expected), `ssh deploy script contains ${expected}`);
 }
 assert(!sshDeploy.includes("$SSH_TARGET:$(shell_quote"), "ssh deploy script does not pass shell-quoted paths to scp");
+assert(sshDeploy.includes("openssl rand -hex 24"), "ssh deploy script generates a local dashboard token");
+assert(sshDeploy.includes("/dev/urandom"), "ssh deploy script uses /dev/urandom when openssl is unavailable");
+assert(!sshDeploy.includes("DASHBOARD_TOKEN=\"token-$(date -u +%s)\""), "ssh deploy script does not fall back to predictable timestamp tokens");
 
 for (const flag of [
   "--host",
@@ -192,6 +211,23 @@ const sshDeployHelp = execFileSync("bash", [sshDeployPath, "--help"], { encoding
 assert(sshDeployHelp.includes("Usage:"), "ssh deploy help renders usage");
 assert(sshDeployHelp.includes("--host"), "ssh deploy help documents ssh host");
 assert(sshDeployHelp.includes("--identity-file"), "ssh deploy help documents identity file");
+
+const newlinePublicIp = expectCommandFailure("bash", [
+  setupPath,
+  "--public-ip", "203.0.113.10\nMCP_BINDER_DASHBOARD_TOKEN=bad",
+  "--rebind-domain", "rebind.example.com",
+  "--dashboard-domain", "dashboard.example.com"
+]);
+assert(newlinePublicIp.includes("must not contain control characters"), "setup rejects newline public IP before privileged install");
+
+const newlineDashboardToken = expectCommandFailure("bash", [
+  setupPath,
+  "--public-ip", "203.0.113.10",
+  "--rebind-domain", "rebind.example.com",
+  "--dashboard-domain", "dashboard.example.com",
+  "--dashboard-token", "good\nMCP_BINDER_INGEST_TOKEN=bad"
+]);
+assert(newlineDashboardToken.includes("must not contain control characters"), "setup rejects newline dashboard token before privileged install");
 
 const sshCleanHelp = execFileSync("bash", [sshCleanPath, "--help"], { encoding: "utf8" });
 assert(sshCleanHelp.includes("Usage:"), "ssh clean help renders usage");
@@ -288,6 +324,15 @@ function assertFile(file, label) {
   assert(fs.existsSync(file), `${label} exists`);
   const mode = fs.statSync(file).mode;
   assert((mode & 0o111) !== 0, `${label} is executable`);
+}
+
+function expectCommandFailure(command, args) {
+  try {
+    execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  } catch (error) {
+    return `${error.stdout || ""}${error.stderr || ""}`;
+  }
+  throw new Error(`${command} ${args.join(" ")} unexpectedly succeeded`);
 }
 
 function assert(condition, message) {

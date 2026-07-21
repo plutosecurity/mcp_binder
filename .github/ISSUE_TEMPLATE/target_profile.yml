@@ -1,0 +1,27 @@
+name: MCP target profile
+description: Request or contribute an MCP target profile.
+title: "[target-profile] "
+labels: ["target-profile"]
+body:
+  - type: input
+    id: server
+    attributes:
+      label: MCP Server
+      placeholder: "example-mcp-server"
+    validations:
+      required: true
+  - type: textarea
+    id: transport
+    attributes:
+      label: Transport Details
+      description: Port, path, transport type, response content type, and whether a session header is required.
+    validations:
+      required: true
+  - type: textarea
+    id: safe_fixture
+    attributes:
+      label: Safe Fixture
+      description: Add a redacted profile or fixture that does not include secrets.
+      render: json
+    validations:
+      required: false

@@ -172,6 +172,29 @@ function validateFrameworkCli() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-binder-framework-"));
   const extensionConfigPath = path.join(tempDir, "extension-build-config.json");
   const packOutputDir = path.join(tempDir, "packed-extension");
+  const cliIngestTokenFile = path.join(tempDir, "mcp-binder-ingest-token");
+  const route53CliConfigPath = path.join(tempDir, "route53-example.framework-config.json");
+  const genericCliConfigPath = path.join(tempDir, "generic.framework-config.json");
+  fs.writeFileSync(route53CliConfigPath, `${JSON.stringify({
+    ...route53Example,
+    dashboard: {
+      ...(route53Example.dashboard || {}),
+      auth: {
+        ...(route53Example.dashboard?.auth || {}),
+        ingest_token_file: cliIngestTokenFile
+      }
+    }
+  }, null, 2)}\n`);
+  fs.writeFileSync(genericCliConfigPath, `${JSON.stringify({
+    ...generic,
+    dashboard: {
+      ...(generic.dashboard || {}),
+      auth: {
+        ...(generic.dashboard?.auth || {}),
+        ingest_token_file: path.join(tempDir, "generic-ingest-token")
+      }
+    }
+  }, null, 2)}\n`);
 
   const validateOutput = runCli(["validate-config", "examples/framework/route53-example.framework-config.json"]);
   assert(validateOutput.ok, "framework CLI validate-config returns ok");
@@ -200,7 +223,7 @@ function validateFrameworkCli() {
 
   const deriveOutput = runCli([
     "derive-extension-config",
-    "examples/framework/route53-example.framework-config.json",
+    route53CliConfigPath,
     "--out",
     extensionConfigPath
   ]);
@@ -218,11 +241,11 @@ function validateFrameworkCli() {
   assertEqual(extensionConfig.launcherPort, route53.singularity.launcherPort, "extension config launcher port");
   assertEqual(extensionConfig.tokenPolicy, "operator-input", "extension config token policy");
   assertEqual(extensionConfig.dashboardTokenFile, route53.dashboard.auth.tokenFile, "extension config token file");
-  assertEqual(extensionConfig.ingestTokenFile, "dist/mcp-binder-ingest-token", "extension config ingest token file");
+  assertEqual(extensionConfig.ingestTokenFile, cliIngestTokenFile, "extension config ingest token file");
   assert(extensionConfig.hostPermissions.includes(`http://*.${route53.dns.rebindDomain}/*`), "extension config includes rebind host permission");
   assertEqual(extensionConfig.dashboardBaseUrl, route53.dashboard.baseUrl, "extension config dashboard base URL");
 
-  const preflightOutput = runCli(["preflight", "examples/framework/route53-example.framework-config.json", "--offline"]);
+  const preflightOutput = runCli(["preflight", route53CliConfigPath, "--offline"]);
   assert(preflightOutput.ok, "framework CLI preflight returns ok");
   assertEqual(preflightOutput.mode, "offline", "preflight mode");
   assertEqual(preflightOutput.attacker.publicIp, route53.attacker.publicIp, "preflight public IP");
@@ -278,7 +301,7 @@ function validateFrameworkCli() {
   assert(packTextOutput.includes(`Token file: ${extensionConfig.dashboardTokenFile}`), "pack-extension output prints token file path");
 
   const vmPlanDir = path.join(tempDir, "vm-plan");
-  const vmPlanOutput = runCli(["plan-vm-setup", "examples/framework/route53-example.framework-config.json", "--out", vmPlanDir]);
+  const vmPlanOutput = runCli(["plan-vm-setup", route53CliConfigPath, "--out", vmPlanDir]);
   assert(vmPlanOutput.ok, "framework CLI plan-vm-setup returns ok");
   assert(fs.existsSync(path.join(vmPlanDir, "deployment-plan.json")), "VM plan has deployment-plan.json");
   assert(fs.existsSync(path.join(vmPlanDir, "env.example")), "VM plan has env.example");
@@ -305,7 +328,7 @@ function validateFrameworkCli() {
     "dns",
     "plan",
     "--config",
-    "examples/framework/route53-example.framework-config.json",
+    route53CliConfigPath,
     "--out",
     dnsPlanDir
   ]);
@@ -321,7 +344,7 @@ function validateFrameworkCli() {
     "dns",
     "apply",
     "--config",
-    "examples/framework/route53-example.framework-config.json",
+    route53CliConfigPath,
     "--out",
     path.join(tempDir, "dns-apply")
   ]);
@@ -333,7 +356,7 @@ function validateFrameworkCli() {
     "dns",
     "verify",
     "--config",
-    "examples/framework/route53-example.framework-config.json",
+    route53CliConfigPath,
     "--stage",
     "records",
     "--offline"
@@ -347,7 +370,7 @@ function validateFrameworkCli() {
     "dns",
     "verify",
     "--config",
-    "examples/framework/route53-example.framework-config.json",
+    route53CliConfigPath,
     "--stage",
     "records",
     "--offline"
@@ -357,12 +380,12 @@ function validateFrameworkCli() {
   assert(frameworkSource.includes("retryDnsLookup"), "dns verify retries transient DNS resolver failures");
   assert(frameworkSource.includes("retryDnsLookup(() => withTimeout(dns.resolveNs(zone)"), "dns verify retries parent-zone NS lookup");
 
-  const attackerDeployDryRun = runCli(["attacker", "deploy", "--config", "examples/framework/route53-example.framework-config.json"]);
+  const attackerDeployDryRun = runCli(["attacker", "deploy", "--config", route53CliConfigPath]);
   assert(attackerDeployDryRun.ok, "framework CLI attacker deploy dry-run returns ok");
   assertEqual(attackerDeployDryRun.dryRun, true, "attacker deploy defaults to dry-run");
-  assert(attackerDeployDryRun.commandLine.includes("scripts/deploy-attacker-ssh.sh"), "attacker deploy dry-run uses ssh deploy script");
+  assert(attackerDeployDryRun.commandLine.includes("scripts/deploy-operator-ssh.sh"), "attacker deploy dry-run uses ssh deploy script");
   assert(attackerDeployDryRun.commandLine.includes("--identity-file ~/.ssh/mcp-binder-example.pem"), "attacker deploy includes configured ssh key path");
-  const vmDeployText = runTextCli(["vm", "deploy", "--config", "examples/framework/route53-example.framework-config.json"]);
+  const vmDeployText = runTextCli(["vm", "deploy", "--config", route53CliConfigPath]);
   assert(vmDeployText.includes("MCP Binder vm deploy preview"), "vm deploy preview has a concise title");
   assert(vmDeployText.includes("Action: Install MCP Binder VM runtime"), "vm deploy preview explains the action");
   assert(vmDeployText.includes("Target: ubuntu@203.0.113.10"), "vm deploy preview shows the SSH target");
@@ -370,25 +393,25 @@ function validateFrameworkCli() {
   assert(!vmDeployText.includes("Script:"), "vm deploy preview hides low-level script names");
   assert(!vmDeployText.includes("Command"), "vm deploy preview hides raw shell command");
 
-  const attackerCleanDryRun = runCli(["attacker", "clean", "--config", "examples/framework/route53-example.framework-config.json"]);
+  const attackerCleanDryRun = runCli(["attacker", "clean", "--config", route53CliConfigPath]);
   assert(attackerCleanDryRun.ok, "framework CLI attacker clean dry-run returns ok");
   assertEqual(attackerCleanDryRun.dryRun, true, "attacker clean defaults to dry-run");
-  assert(attackerCleanDryRun.commandLine.includes("scripts/clean-attacker-ssh.sh"), "attacker clean dry-run uses ssh clean script");
+  assert(attackerCleanDryRun.commandLine.includes("scripts/clean-operator-ssh.sh"), "attacker clean dry-run uses ssh clean script");
   assert(attackerCleanDryRun.commandLine.includes("--yes"), "attacker clean includes required yes flag");
-  const vmCleanText = runTextCli(["vm", "clean", "--config", "examples/framework/route53-example.framework-config.json"]);
+  const vmCleanText = runTextCli(["vm", "clean", "--config", route53CliConfigPath]);
   assert(vmCleanText.includes("MCP Binder vm clean preview"), "vm clean preview has a concise title");
   assert(vmCleanText.includes("Action: Remove MCP Binder VM runtime"), "vm clean preview explains the action");
   assert(vmCleanText.includes("Target: ubuntu@203.0.113.10"), "vm clean preview shows the SSH target");
   assert(!vmCleanText.includes("Script:"), "vm clean preview hides low-level script names");
   assert(!vmCleanText.includes("Command"), "vm clean preview hides raw shell command");
 
-  const attackerVerifyOutput = runCli(["attacker", "verify", "--config", "examples/framework/route53-example.framework-config.json", "--offline"]);
+  const attackerVerifyOutput = runCli(["attacker", "verify", "--config", route53CliConfigPath, "--offline"]);
   assert(attackerVerifyOutput.ok, "framework CLI attacker verify returns ok");
   assertEqual(attackerVerifyOutput.mode, "offline", "attacker verify offline mode");
   assert(attackerVerifyOutput.checks.some((check) => check.name === "ssh.target" && check.status === "info"), "attacker verify reports ssh target offline");
   assert(attackerVerifyOutput.checks.some((check) => check.name === "singularity.launcher"), "attacker verify checks the required launcher payload");
   assert(!attackerVerifyOutput.checks.some((check) => check.name === "singularity.manager"), "attacker verify does not require Singularity manager UI");
-  const attackerVerifyText = runTextCli(["attacker", "verify", "--config", "examples/framework/route53-example.framework-config.json", "--offline"]);
+  const attackerVerifyText = runTextCli(["attacker", "verify", "--config", route53CliConfigPath, "--offline"]);
   assert(!attackerVerifyText.includes("Help:"), "attacker verify output does not print helper link noise");
   assert(!attackerVerifyText.includes("manager.html"), "attacker verify output does not require manager.html");
   assert(attackerVerifyText.endsWith("\n"), "attacker verify human output ends with newline");
@@ -403,6 +426,10 @@ function validateFrameworkCli() {
   assert(readme.includes("dist/mcp-binder-dashboard-token"), "README documents the dashboard token path");
   assert(readme.includes("docs/cli.md"), "README links the CLI reference");
   assert(readme.includes("docs/security-hardening.md"), "README links security hardening guidance");
+  assert(readme.includes("docs/infrastructure.md"), "README links infrastructure guidance");
+  assert(readme.includes("docs/target-profiles.md"), "README links target-profile guidance");
+  assert(readme.includes("docs/architecture.md"), "README links architecture docs");
+  assert(readme.includes("docs/threat-model.md"), "README links threat model docs");
   assert(readme.includes("Use a TLS reverse proxy"), "README warns about HTTP dashboard deployments");
   assert(readme.includes("SECURITY.md"), "README links the security policy");
   assert(fs.existsSync("docs/security-hardening.md"), "security hardening docs exist");
@@ -416,6 +443,14 @@ function validateFrameworkCli() {
   assert(cliDoc.includes("vm clean"), "CLI reference documents VM cleanup");
   assert(cliDoc.includes("--json"), "CLI reference documents JSON output");
   assert(cliDoc.includes("Compatibility Aliases"), "CLI reference documents legacy aliases");
+  const infrastructureDoc = fs.readFileSync("docs/infrastructure.md", "utf8");
+  assert(infrastructureDoc.includes("DNS Contract"), "infrastructure docs explain DNS contract");
+  assert(infrastructureDoc.includes("Network Contract"), "infrastructure docs explain network contract");
+  assert(infrastructureDoc.includes("Route53 is only a helper path"), "infrastructure docs keep provider helpers optional");
+  const targetProfilesDoc = fs.readFileSync("docs/target-profiles.md", "utf8");
+  assert(targetProfilesDoc.includes("schemas/target-profile.schema.json"), "target-profile docs link schema");
+  assert(targetProfilesDoc.includes("streamable-control"), "target-profile docs explain transports");
+  assert(targetProfilesDoc.includes("Keep default tasks non-destructive"), "target-profile docs require safe public tasks");
   const securityDoc = fs.readFileSync("SECURITY.md", "utf8");
   assert(securityDoc.includes("GitHub Security Advisories"), "security policy points to private advisory reporting");
   assert(readme.includes("dist/mcp-binder-lab"), "README uses lab-oriented output naming");
@@ -432,7 +467,7 @@ function validateFrameworkCli() {
   const genericBootstrapOutput = runCli([
     "bootstrap",
     "--config",
-    "examples/framework/generic.framework-config.json",
+    genericCliConfigPath,
     "--out",
     genericBootstrapDir
   ]);
@@ -445,13 +480,13 @@ function validateFrameworkCli() {
     "extension",
     "pack",
     "--config",
-    "examples/framework/route53-example.framework-config.json",
+    route53CliConfigPath,
     "--out",
     extensionPackDir
   ]);
   assert(extensionPackOutput.ok, "framework CLI extension pack returns ok");
   assertEqual(extensionPackOutput.summary.dashboardTokenFile, route53.dashboard.auth.tokenFile, "extension pack wrapper reports token file");
-  assertEqual(extensionPackOutput.summary.ingestTokenFile, "dist/mcp-binder-ingest-token", "extension pack wrapper reports ingest token file path");
+  assertEqual(extensionPackOutput.summary.ingestTokenFile, cliIngestTokenFile, "extension pack wrapper reports ingest token file path");
   assert(fs.existsSync(path.join(extensionPackDir, "manifest.json")), "extension pack wrapper writes manifest");
   assert(fs.existsSync(path.join(extensionPackDir, "generated", "extension-build-config.json")), "extension pack wrapper writes generated config");
 
@@ -459,7 +494,7 @@ function validateFrameworkCli() {
   const bootstrapOutput = runCli([
     "bootstrap",
     "--config",
-    "examples/framework/route53-example.framework-config.json",
+    route53CliConfigPath,
     "--out",
     bootstrapDir
   ]);
@@ -470,6 +505,7 @@ function validateFrameworkCli() {
   assert(bootstrapOutput.steps.some((step) => step.name === "dns.plan"), "bootstrap reports dns step");
   assert(bootstrapOutput.steps.some((step) => step.name === "vm.deploy"), "bootstrap reports VM deploy step");
   assert(bootstrapOutput.steps.some((step) => step.name === "extension.pack"), "bootstrap reports extension pack step");
+  assert(!fs.existsSync(path.join("dist", "mcp-binder-ingest-token")), "validation does not create default dist ingest token");
 
   const sourceManifest = readJson("manifest.json");
   assertEqual(sourceManifest.icons["16"], "icons/icon16.png", "source manifest has 16px icon");
@@ -613,12 +649,12 @@ function validateFrameworkCli() {
   assert(dashboardServerSource.includes("attachServerSnapBackInteractions"), "server dashboard wires snap-back interactions");
   assert(dashboardServerSource.includes("contextmenu"), "server snap-back helper cancels stuck drags on context menu");
   assert(dashboardServerSource.includes("showTokenSavedHint"), "server dashboard can show contextual token feedback");
-  assert(dashboardServerSource.includes("Token saved"), "attacker dashboard save token action shows token saved feedback");
+  assert(dashboardServerSource.includes("Token saved"), "operator dashboard save token action shows token saved feedback");
   assert(dashboardServerSource.includes(".tokenSavedHint"), "server dashboard styles contextual token feedback");
   assert(dashboardServerSource.includes("@keyframes tokenSavedFloat"), "server token feedback fades near the save button");
   assert(dashboardServerSource.includes(".serverBrandTitle"), "server dashboard titles have draggable highlight treatment");
-  assert(dashboardServerSource.includes(".metric"), "attacker dashboard snap-back targets attack surface metrics");
-  assert(dashboardServerSource.includes(".selectable"), "attacker dashboard snap-back targets selectable rows");
+  assert(dashboardServerSource.includes(".metric"), "operator dashboard snap-back targets attack surface metrics");
+  assert(dashboardServerSource.includes(".selectable"), "operator dashboard snap-back targets selectable rows");
   assert(dashboardServerSource.includes(".summary-card"), "ops page snap-back targets summary cards");
   assert(dashboardServerSource.includes(".result-card"), "ops page snap-back targets result cards");
   assert(dashboardServerSource.includes(".tool-card"), "ops page snap-back targets tool cards");

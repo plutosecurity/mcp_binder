@@ -1,12 +1,21 @@
 {
   "name": "mcp_binder",
   "version": "0.1.0",
-  "description": "Chrome extension for finding local MCP exposure and browser-origin risk signals.",
+  "description": "Research framework for turning MCP DNS rebinding into a live attack lab.",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "validate": "node --check src/background.js && node --check src/messages.js && node --check src/scanner.js && node --check src/rebind-evidence.js && node --check src/reporting-labels.js && node --check src/rebind-url.js && node --check src/dashboard-client.js && node --check src/runtime-config.js && node --check src/rebind-bridge-core.js && node --check services/dashboard-server.js && node --check ui/dashboard.js && node --check ui/operator.js && node --check scripts/mock-mcp-lab.js && node --check scripts/framework-cli.js && node --check scripts/validate-rebind-evidence.js && node --check scripts/validate-contracts.js && node --check scripts/validate-dashboard-service.js && node --check scripts/validate-attacker-vm-installer.js && bash -n scripts/setup-attacker-vm.sh scripts/clean-attacker-vm.sh scripts/deploy-attacker-ssh.sh scripts/clean-attacker-ssh.sh scripts/dns-route53-records.sh && node scripts/validate-rebind-evidence.js && node scripts/validate-contracts.js && node scripts/validate-dashboard-service.js && node scripts/validate-attacker-vm-installer.js && node -e \"JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')); console.log('manifest ok')\"",
+    "validate": "npm run validate:syntax && npm run validate:contracts && npm run validate:service && npm run validate:installer && npm run validate:manifest",
+    "validate:syntax": "node --check src/background.js && node --check src/messages.js && node --check src/scanner.js && node --check src/rebind-evidence.js && node --check src/reporting-labels.js && node --check src/rebind-url.js && node --check src/dashboard-client.js && node --check src/runtime-config.js && node --check src/rebind-bridge-core.js && node --check services/dashboard-server.js && node --check ui/dashboard.js && node --check ui/operator.js && node --check scripts/mock-mcp-lab.js && node --check scripts/framework-cli.js && node --check scripts/validate-rebind-evidence.js && node --check scripts/validate-contracts.js && node --check scripts/validate-dashboard-service.js && node --check scripts/validate-operator-vm-installer.js && node --check scripts/release-check.js && bash -n scripts/setup-operator-vm.sh scripts/clean-operator-vm.sh scripts/deploy-operator-ssh.sh scripts/clean-operator-ssh.sh scripts/setup-attacker-vm.sh scripts/clean-attacker-vm.sh scripts/deploy-attacker-ssh.sh scripts/clean-attacker-ssh.sh scripts/dns-route53-records.sh",
+    "validate:contracts": "node scripts/validate-rebind-evidence.js && node scripts/validate-contracts.js",
+    "validate:service": "node scripts/validate-dashboard-service.js",
+    "validate:installer": "node scripts/validate-operator-vm-installer.js",
+    "validate:manifest": "node -e \"JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')); console.log('manifest ok')\"",
+    "release:check": "node scripts/release-check.js",
     "mock:lab": "node scripts/mock-mcp-lab.js"
   }
 }

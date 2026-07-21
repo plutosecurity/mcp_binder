@@ -23,21 +23,24 @@ These scripts are implementation details. Use them directly only when debugging 
 
 | Script | Purpose |
 | --- | --- |
-| `scripts/deploy-attacker-ssh.sh` | Uploads runtime files over SSH and runs the VM installer with `sudo`. |
-| `scripts/setup-attacker-vm.sh` | VM-local installer for Singularity, payload files, dashboard service, and systemd units. |
-| `scripts/clean-attacker-ssh.sh` | Uploads and runs the VM cleanup script over SSH. |
-| `scripts/clean-attacker-vm.sh` | VM-local cleanup script for MCP Binder runtime files and services. |
+| `scripts/deploy-operator-ssh.sh` | Uploads runtime files over SSH and runs the VM installer with `sudo`. |
+| `scripts/setup-operator-vm.sh` | VM-local installer for Singularity, payload files, dashboard service, and systemd units. |
+| `scripts/clean-operator-ssh.sh` | Uploads and runs the VM cleanup script over SSH. |
+| `scripts/clean-operator-vm.sh` | VM-local cleanup script for MCP Binder runtime files and services. |
 | `scripts/dns-route53-records.sh` | Optional Route53 helper that writes zone-file and change-batch records. |
 | `scripts/mock-mcp-lab.js` | Local MCP target lab for scanner and attack regression testing. |
+| `scripts/release-check.js` | Maintainer guard for public release artifacts and private markers. |
 
 The SSH wrappers and VM-local scripts are intentionally separate:
 
 | Layer | Script | Why It Exists |
 | --- | --- | --- |
-| Local transport | `deploy-attacker-ssh.sh`, `clean-attacker-ssh.sh` | Runs on your machine, handles SSH, SCP, token files, and remote staging. |
-| VM runtime | `setup-attacker-vm.sh`, `clean-attacker-vm.sh` | Runs on the VM with `sudo`, changes systemd units and runtime directories. |
+| Local transport | `deploy-operator-ssh.sh`, `clean-operator-ssh.sh` | Runs on your machine, handles SSH, SCP, token files, and remote staging. |
+| VM runtime | `setup-operator-vm.sh`, `clean-operator-vm.sh` | Runs on the VM with `sudo`, changes systemd units and runtime directories. |
 
 Normal users should use `scripts/framework-cli.js vm ...`. The lower-level scripts stay separate so the same VM-local installer and cleaner can be reused by different transport providers later.
+
+The older `*-attacker-*` script names are compatibility wrappers. New automation should use the operator-named scripts.
 
 ## Provider Boundary
 

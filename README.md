@@ -121,8 +121,12 @@ For the full setup flow, read [docs/deployment.md](docs/deployment.md). For conf
 | --- | --- |
 | [Deployment](docs/deployment.md) | First lab setup, SSH deployment, dashboard token, extension loading, cleanup. |
 | [Configuration](docs/configuration.md) | Framework config fields, DNS records, Route53 helper, network rules. |
+| [Infrastructure](docs/infrastructure.md) | Provider-neutral VM, DNS, inbound rule, and provider notes. |
 | [Operation](docs/operation.md) | Scanner behavior, DNS rebinding attack flow, dashboard, and operator console. |
+| [Target Profiles](docs/target-profiles.md) | MCP target-profile schema, examples, and safe task guidance. |
 | [CLI Reference](docs/cli.md) | Supported commands and common options. |
+| [Architecture](docs/architecture.md) | Components, data flow, trust boundaries, and compatibility notes. |
+| [Threat Model](docs/threat-model.md) | Protected assets, assumptions, risks, and explicit non-goals. |
 | [Troubleshooting](docs/troubleshooting.md) | Test config, DNS, SSH, VM services, dashboard, and extension packing one module at a time. |
 | [Security Hardening](docs/security-hardening.md) | Implemented controls, HTTP dashboard risk, TLS guidance, and residual hardening notes. |
 | [Security Policy](SECURITY.md) | How to report vulnerabilities in MCP Binder itself. |

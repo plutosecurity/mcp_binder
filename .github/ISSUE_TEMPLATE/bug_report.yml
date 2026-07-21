@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a reproducible MCP Binder defect.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What failed, and what did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser version, Node version, VM image, DNS provider, and MCP Binder commit.
+      placeholder: |
+        OS:
+        Chrome:
+        Node:
+        VM:
+        DNS provider:
+        Commit:
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction Steps
+      description: List the exact commands and UI actions.
+      placeholder: |
+        1. node scripts/framework-cli.js ...
+        2. Load extension from ...
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Paste relevant command output, browser console output, or dashboard status. Remove tokens and private domains.
+      render: text
+    validations:
+      required: false

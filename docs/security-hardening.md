@@ -62,6 +62,50 @@ Recommended mitigations:
 
 TLS is not automatic yet because it adds certificate issuance, DNS propagation timing, port `80/443` requirements, proxy configuration, renewal state, and cloud firewall rules. The project should add an optional TLS mode later, not make it part of the first working path.
 
+#### Caddy Example
+
+Use this when the dashboard DNS record already points at the VM and inbound `80/tcp` plus `443/tcp` are open for the operator.
+
+```caddyfile
+dashboard.example.com {
+  reverse_proxy 127.0.0.1:8090
+}
+```
+
+Then set the framework config dashboard URL to HTTPS before packing the extension:
+
+```json
+{
+  "dashboard": {
+    "base_url": "https://dashboard.example.com"
+  }
+}
+```
+
+#### Nginx Example
+
+This assumes a certificate already exists under `/etc/letsencrypt/live/dashboard.example.com/`.
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name dashboard.example.com;
+
+  ssl_certificate /etc/letsencrypt/live/dashboard.example.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/dashboard.example.com/privkey.pem;
+
+  location / {
+    proxy_pass http://127.0.0.1:8090;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}
+```
+
+Keep the dashboard service bound to the VM dashboard port. The proxy terminates TLS and forwards traffic to MCP Binder locally.
+
 ### Wildcard CORS
 
 The dashboard currently allows wildcard CORS for API requests. Bearer and ingest tokens still gate sensitive operations, but stricter deployments should move toward configurable allowed origins.

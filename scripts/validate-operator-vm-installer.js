@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 
-const setupPath = "scripts/setup-attacker-vm.sh";
-const cleanPath = "scripts/clean-attacker-vm.sh";
-const sshDeployPath = "scripts/deploy-attacker-ssh.sh";
-const sshCleanPath = "scripts/clean-attacker-ssh.sh";
+const setupPath = "scripts/setup-operator-vm.sh";
+const cleanPath = "scripts/clean-operator-vm.sh";
+const sshDeployPath = "scripts/deploy-operator-ssh.sh";
+const sshCleanPath = "scripts/clean-operator-ssh.sh";
 const dnsRoute53Path = "scripts/dns-route53-records.sh";
 
 assertFile(setupPath, "setup script");
@@ -154,7 +154,7 @@ for (const flag of [
 for (const expected of [
   "ssh",
   "scp",
-  "clean-attacker-vm.sh",
+  "clean-operator-vm.sh",
   "validate_remote_path",
   "stage 1 \"Preparing VM cleanup workspace\"",
   "stage 2 \"Uploading cleanup runtime\"",
@@ -318,7 +318,7 @@ assert(route53PlanOutput.includes(`change_batch=${route53PlanDir}/route53-change
 assert(fs.existsSync(`${route53PlanDir}/route53.zone`), "route53 plan writes zone file");
 assert(fs.existsSync(`${route53PlanDir}/route53-change-batch.json`), "route53 plan writes change batch");
 
-console.log("attacker vm installer validation ok");
+console.log("operator vm installer validation ok");
 
 function assertFile(file, label) {
   assert(fs.existsSync(file), `${label} exists`);

@@ -8,6 +8,7 @@ Run before committing:
 
 ```sh
 npm run validate
+npm run release:check
 git diff --check
 ```
 
@@ -33,8 +34,12 @@ Keep the README short. Put command details in:
 
 - `docs/deployment.md`
 - `docs/configuration.md`
+- `docs/infrastructure.md`
 - `docs/operation.md`
+- `docs/target-profiles.md`
 - `docs/cli.md`
+- `docs/architecture.md`
+- `docs/threat-model.md`
 - `docs/troubleshooting.md`
 
 ## CLI Changes
@@ -53,8 +58,11 @@ node scripts/framework-cli.js
 
 The lower-level shell scripts are implementation details:
 
-- `deploy-attacker-ssh.sh` and `clean-attacker-ssh.sh` run locally and handle SSH/SCP transport.
-- `setup-attacker-vm.sh` and `clean-attacker-vm.sh` run on the VM with `sudo`.
+- `deploy-operator-ssh.sh` and `clean-operator-ssh.sh` run locally and handle SSH/SCP transport.
+- `setup-operator-vm.sh` and `clean-operator-vm.sh` run on the VM with `sudo`.
 
 Keep that split intact so future transport providers can reuse the same VM-local installer and cleaner.
 
+## Release Hygiene
+
+Run `npm run release:check` before syncing code into the public repository. It blocks generated token files, local deployment configs, `.DS_Store`, private markers, and other artifacts that do not belong in a public release.

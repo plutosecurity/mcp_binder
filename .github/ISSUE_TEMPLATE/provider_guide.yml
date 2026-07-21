@@ -1,0 +1,27 @@
+name: Provider guide request
+description: Request or contribute notes for a VM or DNS provider.
+title: "[provider] "
+labels: ["documentation", "provider"]
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: Provider
+      placeholder: "GCP Compute Engine + Cloud DNS"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Required Steps
+      description: DNS records, inbound rules, SSH details, and provider-specific traps.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation Evidence
+      description: Commands that passed. Remove tokens and private domains.
+      render: text
+    validations:
+      required: false

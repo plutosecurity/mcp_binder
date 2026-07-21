@@ -1041,8 +1041,8 @@ function runOrDescribeAttackerScript(config, options) {
     ? attackerDeployArgs(config, options.extraArgs)
     : attackerCleanArgs(config, options.extraArgs);
   const script = options.action === "deploy"
-    ? "scripts/deploy-attacker-ssh.sh"
-    : "scripts/clean-attacker-ssh.sh";
+    ? "scripts/deploy-operator-ssh.sh"
+    : "scripts/clean-operator-ssh.sh";
   const commandLine = [script, ...args].map(shellArg).join(" ");
 
   if (!options.execute) {

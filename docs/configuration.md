@@ -95,8 +95,4 @@ Required inbound rules:
 
 Open only the Singularity HTTP ports needed for the launcher and intended MCP attack ports. Do not expose every port by default.
 
-### EC2 Checklist
-
-For EC2, create a dedicated Security Group such as `mcp-binder-operator`, attach it to the VM, and add the inbound rules above. If checks work from the EC2 host but fail from your laptop, fix the Security Group, network ACL, or host firewall before debugging MCP Binder.
-
-For deeper provider-neutral guidance, read [Infrastructure Guide](infrastructure.md).
+For deeper provider-neutral guidance and optional provider examples, read [Infrastructure Guide](infrastructure.md).

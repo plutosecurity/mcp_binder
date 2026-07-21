@@ -132,3 +132,12 @@ node scripts/framework-cli.js extension pack \
 ```
 
 Use this when the VM and DNS already exist and you only need a deployment-specific extension build.
+
+## Target Profile Validate
+
+```sh
+node scripts/framework-cli.js target-profile validate \
+  examples/framework/tapo-root-target.json
+```
+
+Validates a target profile and prints its name, MCP target, transport, endpoint, and default task count.

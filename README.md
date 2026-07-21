@@ -121,7 +121,7 @@ For the full setup flow, read [docs/deployment.md](docs/deployment.md). For conf
 | --- | --- |
 | [Deployment](docs/deployment.md) | First lab setup, SSH deployment, dashboard token, extension loading, cleanup. |
 | [Configuration](docs/configuration.md) | Framework config fields, DNS records, Route53 helper, network rules. |
-| [Infrastructure](docs/infrastructure.md) | Provider-neutral VM, DNS, inbound rule, and provider notes. |
+| [Infrastructure](docs/infrastructure.md) | Provider-neutral VM, DNS, and inbound-rule contract. |
 | [Operation](docs/operation.md) | Scanner behavior, DNS rebinding attack flow, dashboard, and operator console. |
 | [Target Profiles](docs/target-profiles.md) | MCP target-profile schema, examples, and safe task guidance. |
 | [CLI Reference](docs/cli.md) | Supported commands and common options. |

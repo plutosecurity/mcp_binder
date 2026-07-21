@@ -442,6 +442,9 @@ function validateFrameworkCli() {
   assert(cliDoc.includes("vm clean"), "CLI reference documents VM cleanup");
   assert(cliDoc.includes("--json"), "CLI reference documents JSON output");
   const infrastructureDoc = fs.readFileSync("docs/infrastructure.md", "utf8");
+  assert(infrastructureDoc.includes("MCP Binder is provider-neutral"), "infrastructure docs lead with provider neutrality");
+  assert(infrastructureDoc.includes("Official Contract"), "infrastructure docs define the official contract");
+  assert(infrastructureDoc.includes("Optional Provider Examples"), "infrastructure docs label provider notes as optional examples");
   assert(infrastructureDoc.includes("DNS Contract"), "infrastructure docs explain DNS contract");
   assert(infrastructureDoc.includes("Network Contract"), "infrastructure docs explain network contract");
   assert(infrastructureDoc.includes("Route53 is only a helper path"), "infrastructure docs keep provider helpers optional");
@@ -449,6 +452,7 @@ function validateFrameworkCli() {
   assert(targetProfilesDoc.includes("schemas/target-profile.schema.json"), "target-profile docs link schema");
   assert(targetProfilesDoc.includes("streamable-control"), "target-profile docs explain transports");
   assert(targetProfilesDoc.includes("Keep default tasks non-destructive"), "target-profile docs require safe public tasks");
+  assert(targetProfilesDoc.includes("target-profile validate"), "target-profile docs document CLI validation");
   const securityDoc = fs.readFileSync("SECURITY.md", "utf8");
   assert(securityDoc.includes("GitHub Security Advisories"), "security policy points to private advisory reporting");
   assert(readme.includes("dist/mcp-binder-lab"), "README uses lab-oriented output naming");
@@ -503,6 +507,30 @@ function validateFrameworkCli() {
   assert(bootstrapOutput.steps.some((step) => step.name === "vm.deploy"), "bootstrap reports VM deploy step");
   assert(bootstrapOutput.steps.some((step) => step.name === "extension.pack"), "bootstrap reports extension pack step");
   assert(!fs.existsSync(path.join("dist", "mcp-binder-ingest-token")), "validation does not create default dist ingest token");
+
+  const targetProfileOutput = runCli(["target-profile", "validate", "examples/framework/tapo-root-target.json"]);
+  assert(targetProfileOutput.ok, "target-profile validate returns ok for valid profiles");
+  assertEqual(targetProfileOutput.command, "target-profile validate", "target-profile validate command name");
+  assertEqual(targetProfileOutput.profile.name, "tapo-root-8082", "target-profile validate reports profile name");
+  assertEqual(targetProfileOutput.profile.transport, "streamable", "target-profile validate reports transport");
+  assertEqual(targetProfileOutput.profile.taskCount, 3, "target-profile validate reports task count");
+  const targetProfileText = runTextCli(["target-profile", "validate", "examples/framework/tapo-root-target.json"]);
+  assert(targetProfileText.includes("MCP Binder target profile valid"), "target-profile validate human output has success title");
+  assert(targetProfileText.includes("tapo-root-8082"), "target-profile validate human output names profile");
+
+  const invalidProfilePath = path.join(tempDir, "invalid-target-profile.json");
+  fs.writeFileSync(invalidProfilePath, `${JSON.stringify({
+    name: "bad-profile",
+    targetName: "bad",
+    transport: "streamable",
+    port: 70000,
+    path: "mcp",
+    strategy: "fs",
+    impact: { summary: "bad", vulnerableCondition: "bad", evidenceGoal: "bad" },
+    tasks: [{ name: "Bad call", kind: "tools/call" }]
+  }, null, 2)}\n`);
+  const invalidProfileError = expectCliFailure(["target-profile", "validate", invalidProfilePath]);
+  assert(invalidProfileError.includes("port must be between 1 and 65535"), "target-profile validate rejects invalid port");
 
   const sourceManifest = readJson("manifest.json");
   assertEqual(sourceManifest.icons["16"], "icons/icon16.png", "source manifest has 16px icon");
@@ -674,4 +702,17 @@ function runTextCli(args) {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
   });
+}
+
+function expectCliFailure(args) {
+  try {
+    execFileSync("node", ["scripts/framework-cli.js", ...args], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+  } catch (error) {
+    return `${error.stdout || ""}${error.stderr || ""}`;
+  }
+  throw new Error(`expected CLI failure: ${args.join(" ")}`);
 }

@@ -1,6 +1,8 @@
 # Infrastructure Guide
 
-MCP Binder does not care whether the VM runs on EC2, Azure, GCP, a VPS provider, or an internal lab host. The framework needs reachable infrastructure, not a specific cloud.
+MCP Binder is provider-neutral. The framework needs a reachable VM, three DNS records, and a small set of inbound rules. It does not require AWS, Azure, GCP, Route53, Cloud DNS, or any specific hosting provider.
+
+Use any VM provider and any DNS provider that can satisfy the contracts below.
 
 ## Required Assets
 
@@ -12,6 +14,16 @@ MCP Binder does not care whether the VM runs on EC2, Azure, GCP, a VPS provider,
 | Rebinding domain | Delegated subdomain controlled by the Singularity runtime. |
 | Nameserver hostname | `ns1.<rebind-domain>` or another host that points to the VM and is used by the NS record. |
 | Inbound rules | SSH, dashboard HTTP, selected Singularity HTTP ports, and DNS. |
+
+## Official Contract
+
+The official deployment contract is:
+
+1. A Linux VM reachable over SSH.
+2. DNS records that point the dashboard hostname and delegated rebinding nameserver to that VM.
+3. Network policy that exposes only SSH, the dashboard port, selected Singularity HTTP ports, and DNS.
+
+Provider-specific setup, cloud firewall UI, IAM, hosted-zone management, VPC layout, and certificate automation stay outside the core framework. MCP Binder gives helper commands where useful, but the tool does not own the cloud account.
 
 ## DNS Contract
 
@@ -50,7 +62,9 @@ Open only the ports needed by the lab.
 
 Do not expose every TCP port through Singularity. Each extra port creates another public listener and another cloud firewall rule to review. Keep the range aligned with the launcher and the MCP ports selected for the assessment.
 
-## Provider Notes
+## Optional Provider Examples
+
+These notes are examples of how the same contract maps to common providers. They are not the official deployment path.
 
 ### EC2
 
@@ -72,7 +86,7 @@ Do not expose every TCP port through Singularity. Each extra port creates anothe
 - Add VPC firewall rules for SSH, dashboard, selected Singularity ports, UDP `53`, and TCP `53`.
 - Confirm the instance OS has `sudo`, `bash`, and one supported package manager.
 
-## Optional Route53 Helper
+## Optional DNS Helper
 
 Route53 is only a helper path, not a core requirement:
 

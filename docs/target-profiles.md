@@ -86,10 +86,16 @@ Keep default tasks non-destructive. A public profile should enumerate tools, rea
 4. Validate:
 
 ```sh
+node scripts/framework-cli.js target-profile validate examples/framework/tapo-root-target.json
+```
+
+5. Run the full project checks before committing:
+
+```sh
 npm run validate
 ```
 
-5. Add the profile to docs only after the behavior is repeatable.
+6. Add the profile to docs only after the behavior is repeatable.
 
 ## Existing Examples
 

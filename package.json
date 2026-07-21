@@ -5,10 +5,19 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
+  "homepage": "https://github.com/plutosecurity/mcp_binder#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/plutosecurity/mcp_binder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/plutosecurity/mcp_binder/issues"
+  },
   "engines": {
     "node": ">=20"
   },
   "scripts": {
+    "test": "npm run validate",
     "validate": "npm run validate:syntax && npm run validate:contracts && npm run validate:service && npm run validate:installer && npm run validate:manifest",
     "validate:syntax": "node --check src/background.js && node --check src/messages.js && node --check src/scanner.js && node --check src/rebind-evidence.js && node --check src/reporting-labels.js && node --check src/rebind-url.js && node --check src/dashboard-client.js && node --check src/runtime-config.js && node --check src/rebind-bridge-core.js && node --check services/dashboard-server.js && node --check ui/dashboard.js && node --check ui/operator.js && node --check scripts/mock-mcp-lab.js && node --check scripts/framework-cli.js && node --check scripts/validate-rebind-evidence.js && node --check scripts/validate-contracts.js && node --check scripts/validate-dashboard-service.js && node --check scripts/validate-operator-vm-installer.js && bash -n scripts/setup-operator-vm.sh scripts/clean-operator-vm.sh scripts/deploy-operator-ssh.sh scripts/clean-operator-ssh.sh scripts/dns-route53-records.sh",
     "validate:contracts": "node scripts/validate-rebind-evidence.js && node scripts/validate-contracts.js",

@@ -85,6 +85,10 @@ async function main(argv) {
     return extensionCommand(rest);
   }
 
+  if (command === "target-profile") {
+    return targetProfileCommand(rest);
+  }
+
   if (command === "bootstrap") {
     return bootstrapCommand(rest);
   }
@@ -215,6 +219,22 @@ function extensionCommand(argv) {
   return {
     ...result,
     command: "extension pack"
+  };
+}
+
+function targetProfileCommand(argv) {
+  const [subcommand, file] = argv;
+  if (subcommand !== "validate") {
+    throw new Error(`unknown target-profile command: ${subcommand || "(missing)"}`);
+  }
+  assert(file, "target-profile validate requires a profile JSON file");
+  const profile = readJson(file);
+  const summary = validateTargetProfile(profile, file);
+  return {
+    ok: true,
+    command: "target-profile validate",
+    file,
+    profile: summary
   };
 }
 
@@ -508,6 +528,64 @@ function validateExtensionConfig(config) {
 
   assert(Array.isArray(config.hostPermissions), "extension build config hostPermissions must be an array");
   assert(config.hostPermissions.length > 0, "extension build config hostPermissions must not be empty");
+}
+
+function validateTargetProfile(profile, label) {
+  for (const requiredPath of [
+    "name",
+    "targetName",
+    "transport",
+    "port",
+    "path",
+    "strategy",
+    "impact.summary",
+    "impact.vulnerableCondition",
+    "impact.evidenceGoal",
+    "tasks"
+  ]) {
+    assert(getPath(profile, requiredPath) !== undefined, `${label} missing ${requiredPath}`);
+  }
+
+  assert(["streamable", "streamable-control", "sse", "ws-control"].includes(profile.transport), `${label} transport must be streamable, streamable-control, sse, or ws-control`);
+  assert(Number.isInteger(profile.port) && profile.port >= 1 && profile.port <= 65535, `${label} port must be between 1 and 65535`);
+  assert(String(profile.path).startsWith("/"), `${label} path must start with /`);
+  assert(["fs", "ma", "rr", "rd"].includes(profile.strategy), `${label} strategy must be fs, ma, rr, or rd`);
+  if (profile.pollMs !== undefined) {
+    assert(Number.isInteger(profile.pollMs) && profile.pollMs >= 100, `${label} pollMs must be at least 100`);
+  }
+  if (profile.maxTries !== undefined) {
+    assert(Number.isInteger(profile.maxTries) && profile.maxTries >= 1, `${label} maxTries must be at least 1`);
+  }
+  assert(Array.isArray(profile.tasks) && profile.tasks.length > 0, `${label} tasks must not be empty`);
+  profile.tasks.forEach((task, index) => validateTargetProfileTask(task, `${label} tasks[${index}]`));
+
+  return {
+    name: profile.name,
+    targetName: profile.targetName,
+    transport: profile.transport,
+    endpoint: `${profile.port}${profile.path}`,
+    port: profile.port,
+    path: profile.path,
+    strategy: profile.strategy,
+    taskCount: profile.tasks.length
+  };
+}
+
+function validateTargetProfileTask(task, label) {
+  assert(task && typeof task === "object" && !Array.isArray(task), `${label} must be an object`);
+  assert(typeof task.name === "string" && task.name.trim(), `${label} missing name`);
+  assert(["tools/list", "tools/call", "rpc"].includes(task.kind), `${label} kind must be tools/list, tools/call, or rpc`);
+  if (task.kind === "tools/call") {
+    assert(typeof task.tool === "string" && task.tool.trim(), `${label} tools/call requires tool`);
+    assert(task.args === undefined || isPlainObject(task.args), `${label} args must be an object`);
+  }
+  if (task.kind === "rpc") {
+    assert(isPlainObject(task.rpc), `${label} rpc task requires rpc object`);
+  }
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function readOrCreateTokenFile(file) {
@@ -1518,6 +1596,17 @@ function formatResult(result) {
         result.summary ? `Dashboard: ${result.summary.dashboardUrl}` : "",
         result.summary?.dashboardTokenFile ? `${ICON.key} Token file: ${result.summary.dashboardTokenFile}` : ""
       ].filter(Boolean).join("\n").replace(/\n+$/, "\n");
+    case "target-profile validate":
+      return [
+        `${ICON.ok} MCP Binder target profile valid`,
+        "",
+        `File: ${result.file}`,
+        `Name: ${result.profile.name}`,
+        `Target: ${result.profile.targetName}`,
+        `Transport: ${result.profile.transport}`,
+        `Endpoint: ${result.profile.endpoint}`,
+        `Tasks: ${result.profile.taskCount}`
+      ].join("\n").replace(/\n+$/, "\n");
     case "derive-extension-config":
       return `${ICON.ok} MCP Binder extension config written\n\nOutput: ${result.out}\n`;
     case "bootstrap":

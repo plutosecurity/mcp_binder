@@ -18,6 +18,210 @@ const options = {
   defaultPayloadPath: process.env.MCP_BINDER_DEFAULT_PAYLOAD_PATH || "payloads/victim-launcher.html"
 };
 
+const SNAP_BACK_INTERACTION_CSS = `
+.snapBackInteractive {
+  will-change: transform;
+}
+.snapBackInteractive:not(button):not(a) {
+  cursor: grab;
+}
+.snapBackInteractive.snapBackDragging {
+  cursor: grabbing;
+  transform: translate(var(--snap-x, 0px), var(--snap-y, 0px)) rotate(var(--snap-rotate, 0deg));
+  transition: none;
+  z-index: 2;
+}
+.snapBackInteractive.snapBackReturning {
+  transform: translate(0, 0) rotate(0deg);
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+button.snapBackDragging,
+a.snapBackDragging {
+  filter: none !important;
+}
+.serverBrandTitle {
+  display: inline-block;
+  border-radius: 8px;
+  padding: 4px 8px 5px;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.serverBrandTitle:hover {
+  background: var(--yellow, #f4d331);
+  color: var(--text, #111013);
+  box-shadow: 3px 3px 0 var(--line, #19150f);
+  transform: translate(-1px, -1px);
+}
+.tokenSavedHint {
+  position: fixed;
+  z-index: 80;
+  color: var(--green-dark, #027a48);
+  font-weight: 900;
+  pointer-events: none;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 var(--surface, #fffdf2);
+  animation: tokenSavedFloat 1500ms ease forwards;
+}
+@keyframes tokenSavedFloat {
+  0% { opacity: 0; transform: translateY(4px); }
+  14% { opacity: 1; }
+  72% { opacity: 1; transform: translateY(44px); }
+  100% { opacity: 0; transform: translateY(72px); }
+}
+`;
+
+const SNAP_BACK_INTERACTION_SCRIPT = `
+function attachServerSnapBackInteractions() {
+  const threshold = 5;
+  const returnMs = 280;
+  const selector = [
+    "button",
+    "a.button",
+    ".pill",
+    ".status",
+    ".brand",
+    ".serverBrandTitle",
+    ".panel",
+    ".card",
+    ".metric",
+    ".selectable",
+    ".row",
+    ".muted-box",
+    ".auth",
+    "details.panel > summary",
+    ".summary-card",
+    ".result-card",
+    ".tool-card",
+    ".candidate",
+    ".ready-step",
+    ".sessionItem",
+    ".quick-action",
+    ".saved-request",
+    ".readiness > *",
+    ".metric-grid > *",
+    ".summary-grid > *",
+    ".tool-grid > *",
+    ".task-grid > *",
+    ".finding-list li",
+    ".operatorDialog"
+  ].join(",");
+  let active = null;
+
+  function excluded(element) {
+    return Boolean(
+      element.closest("input")
+      || element.closest("select")
+      || element.closest("textarea")
+      || element.closest("pre")
+      || element.closest("code")
+      || element.closest(".main-resizer")
+      || element.closest(".workspace-resizer")
+      || element.closest("[data-no-snap]")
+    );
+  }
+
+  function refresh(scope) {
+    const root = scope || document;
+    if (root.matches && root.matches(selector) && !excluded(root)) {
+      root.classList.add("snapBackInteractive");
+    }
+    root.querySelectorAll(selector).forEach((element) => {
+      if (!excluded(element)) element.classList.add("snapBackInteractive");
+    });
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function start(event) {
+    if (event.button !== 0 || active) return;
+    const target = event.target.closest(".snapBackInteractive");
+    if (!target || excluded(target)) return;
+    active = { target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
+    target.classList.remove("snapBackReturning");
+    try { target.setPointerCapture(event.pointerId); } catch (error) {}
+    target.addEventListener("pointermove", move);
+  }
+
+  function move(event) {
+    if (!active) return;
+    const rawX = event.clientX - active.startX;
+    const rawY = event.clientY - active.startY;
+    if (Math.hypot(rawX, rawY) < threshold && !active.moved) return;
+    active.moved = true;
+    active.target.classList.add("snapBackDragging");
+    active.target.style.setProperty("--snap-x", rawX + "px");
+    active.target.style.setProperty("--snap-y", rawY + "px");
+    active.target.style.setProperty("--snap-rotate", clamp(rawX / 28, -3, 3) + "deg");
+  }
+
+  function finishSnapBackInteraction(event) {
+    if (!active) return;
+    const target = active.target;
+    const moved = active.moved;
+    const pointerId = active.pointerId;
+    active = null;
+    try {
+      if (pointerId !== undefined && target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+    } catch (error) {}
+    target.removeEventListener("pointermove", move);
+    if (!moved) return;
+    if (event && event.type === "contextmenu") event.preventDefault();
+    target.dataset.snapBackMoved = "true";
+    target.classList.remove("snapBackDragging");
+    target.classList.add("snapBackReturning");
+    target.style.setProperty("--snap-x", "0px");
+    target.style.setProperty("--snap-y", "0px");
+    target.style.setProperty("--snap-rotate", "0deg");
+    window.setTimeout(() => {
+      delete target.dataset.snapBackMoved;
+      target.classList.remove("snapBackReturning");
+      target.style.removeProperty("--snap-x");
+      target.style.removeProperty("--snap-y");
+      target.style.removeProperty("--snap-rotate");
+    }, returnMs);
+  }
+
+  function suppressClick(event) {
+    const target = event.target.closest(".snapBackInteractive");
+    if (!target || !target.dataset.snapBackMoved) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  window.showTokenSavedHint = function showTokenSavedHint(anchor, message) {
+    const existing = document.querySelector("#tokenSavedHint");
+    if (existing) existing.remove();
+    const hint = document.createElement("span");
+    const rect = anchor ? anchor.getBoundingClientRect() : { left: 18, bottom: 18 };
+    hint.id = "tokenSavedHint";
+    hint.className = "tokenSavedHint";
+    hint.setAttribute("role", "status");
+    hint.textContent = message;
+    hint.style.left = Math.max(12, rect.left) + "px";
+    hint.style.top = Math.max(12, rect.bottom + 10) + "px";
+    document.body.append(hint);
+    window.setTimeout(() => hint.remove(), 1500);
+  };
+
+  refresh(document);
+  document.addEventListener("pointerdown", start, true);
+  document.addEventListener("pointerup", finishSnapBackInteraction, true);
+  document.addEventListener("pointercancel", finishSnapBackInteraction, true);
+  document.addEventListener("contextmenu", finishSnapBackInteraction, true);
+  document.addEventListener("click", suppressClick, true);
+  document.addEventListener("visibilitychange", () => finishSnapBackInteraction(), true);
+  window.addEventListener("blur", () => finishSnapBackInteraction(), true);
+  new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) refresh(node);
+      });
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+}
+`;
+
 const state = createState();
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((error) => {
@@ -506,6 +710,7 @@ pre { margin: 0; min-height: 360px; max-height: 62vh; overflow: auto; border: 2p
   gap: 8px;
   flex-wrap: wrap;
 }
+${SNAP_BACK_INTERACTION_CSS}
 @media (max-width: 860px) {
   .grid { grid-template-columns: 1fr; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -693,6 +898,8 @@ function showDecisionDialog(options = {}) {
     cancel.focus();
   });
 }
+${SNAP_BACK_INTERACTION_SCRIPT}
+attachServerSnapBackInteractions();
 </script>
 </body>
 </html>`;
@@ -889,6 +1096,7 @@ pre {
   gap: 8px;
   flex-wrap: wrap;
 }
+${SNAP_BACK_INTERACTION_CSS}
 @media (max-width: 900px) {
   main, .panes, .grid { grid-template-columns: 1fr; }
   aside { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -897,7 +1105,7 @@ pre {
 </head>
 <body>
 <header>
-  <div class="brand"><span class="mark"></span><span>MCP Binder Dashboard</span></div>
+  <div class="brand"><span class="mark"></span><span class="serverBrandTitle">MCP Binder Dashboard</span></div>
   <div class="topline"><span class="pill">${escapeHtml(options.dashboardFqdn || "dashboard.example.com")}</span><span id="conn">offline</span></div>
 </header>
 <main>
@@ -951,6 +1159,7 @@ document.getElementById("token").value = token;
 document.getElementById("saveToken").onclick = () => {
   token = document.getElementById("token").value.trim();
   localStorage.setItem("mcpRebindToken", token);
+  showTokenSavedHint(document.getElementById("saveToken"), "Token saved");
   refresh();
 };
 function authHeaders() {
@@ -1191,6 +1400,8 @@ function showDecisionDialog(options = {}) {
 }
 refresh();
 setInterval(refresh, 2000);
+${SNAP_BACK_INTERACTION_SCRIPT}
+attachServerSnapBackInteractions();
 </script>
 </body>
 </html>`;
@@ -1390,6 +1601,7 @@ pre {
   gap: 8px;
   flex-wrap: wrap;
 }
+${SNAP_BACK_INTERACTION_CSS}
 .resizing, .resizing * { cursor: col-resize !important; user-select: none !important; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; } aside { border-bottom: 1px solid var(--line); } .main-resizer { display: none; } }
 @media (max-width: 1100px) { .workspace-grid { grid-template-columns: 1fr; } .workspace-resizer { display: none; } .readiness, .summary-grid { grid-template-columns: 1fr; } }
@@ -1397,7 +1609,7 @@ pre {
 </head>
 <body>
 <header>
-  <div class="brand"><span class="mark"></span><span>MCP Operations</span></div>
+  <div class="brand"><span class="mark"></span><span class="serverBrandTitle">MCP Operations</span></div>
   <div class="topline"><a class="pill" href="/">capture dashboard</a><span id="conn">offline</span></div>
 </header>
 <main>
@@ -2341,6 +2553,7 @@ async function refresh() {
 document.getElementById("saveToken").onclick = () => {
   token = document.getElementById("token").value.trim();
   localStorage.setItem("mcpRebindToken", token);
+  showTokenSavedHint(document.getElementById("saveToken"), "Token saved");
   refresh();
 };
 document.getElementById("session").onchange = () => { requestedSession = document.getElementById("session").value; render(); };
@@ -2389,6 +2602,8 @@ document.getElementById("refreshProfile").onclick = async () => {
 };
 refresh();
 setInterval(refresh, 2000);
+${SNAP_BACK_INTERACTION_SCRIPT}
+attachServerSnapBackInteractions();
 </script>
 </body>
 </html>`;

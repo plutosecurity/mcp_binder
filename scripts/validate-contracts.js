@@ -239,6 +239,7 @@ function validateFrameworkCli() {
   assert(fs.existsSync(path.join(packOutputDir, "icons", "icon128.png")), "packed extension has 128px icon");
   assert(fs.existsSync(path.join(packOutputDir, "src", "scanner.js")), "packed extension has scanner");
   assert(fs.existsSync(path.join(packOutputDir, "ui", "dashboard.html")), "packed extension has dashboard");
+  assert(fs.existsSync(path.join(packOutputDir, "ui", "interactions.js")), "packed extension has shared UI interactions");
   assert(fs.existsSync(path.join(packOutputDir, "generated", "extension-build-config.json")), "packed extension has generated extension config");
   assert(fs.existsSync(path.join(packOutputDir, "generated", "runtime-config.json")), "packed extension has generated runtime config");
   assert(fs.existsSync(path.join(packOutputDir, "generated", "build-summary.json")), "packed extension has build summary");
@@ -472,6 +473,7 @@ function validateFrameworkCli() {
 
   const dashboardHtml = fs.readFileSync("ui/dashboard.html", "utf8");
   const dashboardSource = fs.readFileSync("ui/dashboard.js", "utf8");
+  const interactionsSource = fs.readFileSync("ui/interactions.js", "utf8");
   const messagesSource = fs.readFileSync("src/messages.js", "utf8");
   assert(!dashboardHtml.includes("generateRebindButton"), "dashboard no longer exposes standalone generate URL control");
   assert(!dashboardHtml.includes("openRebindButton"), "dashboard no longer exposes standalone open URL control");
@@ -504,7 +506,47 @@ function validateFrameworkCli() {
   assert(dashboardSource.includes("renderBlockedScan"), "dashboard renders blocked scan policy errors as structured UI");
   assert(dashboardSource.includes("activityPanel"), "dashboard renders live activity panel");
   assert(dashboardHtml.includes("activityPanel"), "dashboard includes live activity panel markup");
+  assert(dashboardHtml.includes("brandTitle"), "dashboard title uses interactive text treatment");
+  assert(!dashboardHtml.includes("binderMark"), "dashboard title does not include a separate icon mark");
+  assert(dashboardHtml.includes("statusButton"), "dashboard status is an actionable button");
+  assert(dashboardHtml.includes("toggleVmIpButton"), "dashboard exposes VM IP reveal control");
+  assert(dashboardHtml.includes("activityDragHandle"), "dashboard exposes an activity panel drag handle");
+  assert(dashboardHtml.includes("activityResizeHandle"), "dashboard exposes an activity panel resize handle");
+  assert(dashboardSource.includes("enableActivityPanelDrag"), "dashboard wires activity panel dragging");
+  assert(dashboardSource.includes("enableActivityPanelResize"), "dashboard wires activity panel resizing");
+  assert(dashboardSource.includes("startActivityPanelResize"), "dashboard can start activity panel resizing");
+  assert(dashboardSource.includes("setPointerCapture"), "dashboard drag keeps pointer capture while moving");
+  assert(dashboardSource.includes("attachSnapBackInteractions"), "dashboard wires shared snap-back interactions");
+  assert(dashboardSource.includes("highlightActivityPanel"), "dashboard status button highlights activity panel");
+  assert(dashboardSource.includes("toggleVmIpVisibility"), "dashboard can reveal and hide the VM IP");
+  assert(dashboardSource.includes("renderVmIpValue"), "dashboard renders masked VM IP by default");
+  assert(interactionsSource.includes(".verdict"), "shared snap-back helper targets finding verdict badges");
+  assert(interactionsSource.includes(".brandTitle"), "shared snap-back helper targets the dashboard title");
+  assert(interactionsSource.includes(".githubLink"), "shared snap-back helper targets the GitHub icon");
+  assert(interactionsSource.includes(".statusButton"), "shared snap-back helper targets the status button");
+  assert(interactionsSource.includes("finishSnapBackInteraction"), "shared snap-back helper has a single cleanup path");
+  assert(interactionsSource.includes("contextmenu"), "shared snap-back helper cancels stuck drags on context menu");
+  assert(interactionsSource.includes("visibilitychange"), "shared snap-back helper cancels stuck drags on page visibility changes");
+  assert(interactionsSource.includes("addEventListener(\"blur\""), "shared snap-back helper cancels stuck drags on window blur");
+  assert(interactionsSource.includes("SNAP_BACK_DRAG_THRESHOLD"), "shared snap-back helper uses a click-safe movement threshold");
+  assert(!interactionsSource.includes("SNAP_BACK_MAX_OFFSET"), "shared snap-back dragging is not artificially capped");
+  assert(!dashboardSource.includes("maxLeft"), "activity panel dragging is not capped by viewport left bounds");
+  assert(!dashboardSource.includes("maxWidth"), "activity panel resizing is not capped by viewport width");
   const dashboardCss = fs.readFileSync("ui/dashboard.css", "utf8");
+  assert(dashboardCss.includes(".brandTitle"), "dashboard styles interactive title text");
+  assert(dashboardCss.includes(".brandTitle:hover"), "dashboard title highlights on hover");
+  assert(dashboardCss.includes(".statusButton"), "dashboard styles actionable status badge");
+  assert(dashboardCss.includes(".vmIpSecret"), "dashboard styles masked VM IP");
+  assert(dashboardSource.includes("OPEN_EYE_ICON"), "dashboard renders a dedicated open-eye VM IP icon");
+  assert(dashboardSource.includes("CLOSED_EYE_ICON"), "dashboard renders a dedicated closed-eye VM IP icon");
+  assert(dashboardCss.includes(".eyeIconShell"), "dashboard styles the VM IP eye icon shell");
+  assert(dashboardCss.includes(".activityPanel.highlight"), "dashboard styles activity highlight pulse");
+  assert(dashboardCss.includes(".activityDragHandle"), "dashboard styles the activity panel drag handle");
+  assert(dashboardCss.includes(".activityResizeHandle"), "dashboard styles the activity panel resize handle");
+  assert(dashboardCss.includes("cursor: grab"), "dashboard shows draggable cursor on the activity handle");
+  assert(dashboardCss.includes("cursor: nwse-resize"), "dashboard shows resize cursor on the activity resize handle");
+  assert(dashboardCss.includes(".snapBackInteractive"), "dashboard styles snap-back interactive surfaces");
+  assert(dashboardCss.includes(".snapBackDragging"), "dashboard styles active snap-back dragging");
   assert(dashboardCss.includes(".operatorNotice"), "dashboard styles transient operator notices");
   assert(dashboardCss.includes(".operatorDialog"), "dashboard styles themed decision dialogs");
   assert(dashboardCss.includes(".rebindDeployment dd"), "dashboard compacts rebind deployment values");
@@ -518,6 +560,24 @@ function validateFrameworkCli() {
   assert(!dashboardSource.includes("chrome.tabs.create({ url }"), "dashboard does not launch raw rebind proof URLs in a tab");
   assert(offscreenSource.includes("mcpName"), "offscreen duplicate-bridge payload preserves MCP name");
   assert(!dashboardSource.includes("chrome.tabs.remove(tabId"), "dashboard does not model proof stop as closing a tab");
+
+  const dashboardServerSource = fs.readFileSync("services/dashboard-server.js", "utf8");
+  assert(dashboardServerSource.includes("SNAP_BACK_INTERACTION_CSS"), "server dashboard ships shared snap-back CSS");
+  assert(dashboardServerSource.includes("SNAP_BACK_INTERACTION_SCRIPT"), "server dashboard ships shared snap-back JS");
+  assert(dashboardServerSource.includes("attachServerSnapBackInteractions"), "server dashboard wires snap-back interactions");
+  assert(dashboardServerSource.includes("contextmenu"), "server snap-back helper cancels stuck drags on context menu");
+  assert(dashboardServerSource.includes("showTokenSavedHint"), "server dashboard can show contextual token feedback");
+  assert(dashboardServerSource.includes("Token saved"), "attacker dashboard save token action shows token saved feedback");
+  assert(dashboardServerSource.includes(".tokenSavedHint"), "server dashboard styles contextual token feedback");
+  assert(dashboardServerSource.includes("@keyframes tokenSavedFloat"), "server token feedback fades near the save button");
+  assert(dashboardServerSource.includes(".serverBrandTitle"), "server dashboard titles have draggable highlight treatment");
+  assert(dashboardServerSource.includes(".metric"), "attacker dashboard snap-back targets attack surface metrics");
+  assert(dashboardServerSource.includes(".selectable"), "attacker dashboard snap-back targets selectable rows");
+  assert(dashboardServerSource.includes(".summary-card"), "ops page snap-back targets summary cards");
+  assert(dashboardServerSource.includes(".result-card"), "ops page snap-back targets result cards");
+  assert(dashboardServerSource.includes(".tool-card"), "ops page snap-back targets tool cards");
+  assert(dashboardServerSource.includes(".ready-step"), "ops page snap-back targets readiness cards");
+  assert(dashboardServerSource.includes(".task-grid > *"), "ops page snap-back targets generated tool console tasks");
 }
 
 function runCli(args) {

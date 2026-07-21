@@ -1,6 +1,7 @@
 import { MessageType } from "../src/messages.js";
 import { formatScanStage } from "../src/reporting-labels.js";
 import { buildCustomUrlDescriptor, buildSingularityDescriptor } from "../src/rebind-url.js";
+import { attachSnapBackInteractions } from "./interactions.js";
 import { labSettingsFromRuntimeConfig, loadRuntimeConfig } from "../src/runtime-config.js";
 import { scanTargetPermissionCandidates, validateScanTargetAccess } from "../src/scanner.js";
 
@@ -21,10 +22,14 @@ const detailPanel = document.querySelector("#detailPanel");
 const rebindStatus = document.querySelector("#rebindStatus");
 const labDomainValue = document.querySelector("#labDomainValue");
 const vmIpValue = document.querySelector("#vmIpValue");
+const toggleVmIpButton = document.querySelector("#toggleVmIpButton");
+const vmIpEyeIcon = document.querySelector("#vmIpEyeIcon");
 const dashboardBaseValue = document.querySelector("#dashboardBaseValue");
 const openDashboardButton = document.querySelector("#openDashboardButton");
 const stopRebindButton = document.querySelector("#stopRebindButton");
 const activityPanel = document.querySelector("#activityPanel");
+const activityDragHandle = document.querySelector(".activityDragHandle");
+const activityResizeHandle = document.querySelector(".activityResizeHandle");
 const activityTitle = document.querySelector("#activityTitle");
 const activityState = document.querySelector("#activityState");
 const activityMeterFill = document.querySelector("#activityMeterFill");
@@ -39,7 +44,27 @@ let runtimeConfig = null;
 let activityItems = [];
 let operatorNoticeTimer = null;
 let bridgeRunNonce = 0;
+let activityPanelDrag = null;
+let activityPanelResize = null;
+let snapBackInteractions = null;
+let vmIpVisible = false;
 const dashboardStateKeys = ["dashboardLastResult", "dashboardSelectedFindingKey", "dashboardActiveBridge"];
+const ACTIVITY_MIN_WIDTH = 280;
+const ACTIVITY_MIN_HEIGHT = 185;
+const OPEN_EYE_ICON = `
+  <svg class="eyeIconSvg open" viewBox="0 0 24 24" focusable="false">
+    <path class="eyeIconLine" d="M2.5 12s3.7-5.6 9.5-5.6S21.5 12 21.5 12s-3.7 5.6-9.5 5.6S2.5 12 2.5 12Z"/>
+    <circle class="eyeIconPupil" cx="12" cy="12" r="2.4"/>
+  </svg>
+`;
+const CLOSED_EYE_ICON = `
+  <svg class="eyeIconSvg closed" viewBox="0 0 24 24" focusable="false">
+    <path class="eyeIconLine" d="M3.2 9.3c2.2 3.4 5.1 5.1 8.8 5.1s6.6-1.7 8.8-5.1"/>
+    <path class="eyeIconLine" d="M7 14.2 5.7 17"/>
+    <path class="eyeIconLine" d="M12 15.1v3"/>
+    <path class="eyeIconLine" d="m17 14.2 1.3 2.8"/>
+  </svg>
+`;
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === MessageType.ScanProgress) {
@@ -166,6 +191,11 @@ exportButton.addEventListener("click", () => {
 
 openDashboardButton.addEventListener("click", openDashboardDashboard);
 stopRebindButton.addEventListener("click", stopRebindBridge);
+statusBadge.addEventListener("click", highlightActivityPanel);
+toggleVmIpButton.addEventListener("click", toggleVmIpVisibility);
+enableActivityPanelDrag();
+enableActivityPanelResize();
+enableSnapBackInteractions();
 
 async function startRebindForSelectedFinding() {
   const finding = selectedFinding();
@@ -567,6 +597,7 @@ function renderFindings() {
 
   renderDetail(findings.find((finding) => findingKey(finding) === selectedFindingKey));
   renderRebindControls();
+  snapBackInteractions?.refresh(findingsList);
 }
 
 function renderDetail(finding) {
@@ -591,6 +622,7 @@ function renderDetail(finding) {
     section("Signals", keyValueRows(signalSummary(finding))),
     detailsSection("Raw Evidence", rawJson(finding))
   );
+  snapBackInteractions?.refresh(detailPanel);
 }
 
 function filteredFindings() {
@@ -697,12 +729,25 @@ function renderBlockedScan(error) {
 
   card.append(eyebrow, title, body, allowed, action);
   findingsList.append(card);
+  snapBackInteractions?.refresh(findingsList);
   clearPersistedDashboardState();
 }
 
 function setStatus(label, state) {
   statusBadge.textContent = label;
-  statusBadge.className = `badge ${state}`;
+  statusBadge.className = `badge statusButton ${state}`;
+}
+
+function highlightActivityPanel() {
+  activityPanel.classList.remove("highlight");
+  void activityPanel.offsetWidth;
+  activityPanel.classList.add("highlight");
+  activityPanel.focus?.({ preventScroll: true });
+}
+
+function toggleVmIpVisibility() {
+  vmIpVisible = !vmIpVisible;
+  renderVmIpValue();
 }
 
 function renderScanProgress(progress) {
@@ -818,7 +863,11 @@ function updateActivity({ title, state, detail, percent, item }) {
   activityTitle.textContent = title || "Activity";
   activityState.textContent = state || "ready";
   activityDetail.textContent = detail || "";
-  activityPanel.className = `activityPanel ${state || "idle"}`;
+  const interactiveClasses = [
+    activityPanel.classList.contains("dragging") ? "dragging" : "",
+    activityPanel.classList.contains("resizing") ? "resizing" : ""
+  ].filter(Boolean).join(" ");
+  activityPanel.className = `activityPanel ${state || "idle"}${interactiveClasses ? ` ${interactiveClasses}` : ""}`;
   activityMeterFill.style.width = `${clampPercent(percent)}%`;
 
   if (item) {
@@ -845,6 +894,137 @@ function appendActivity(text) {
     entry.textContent = item;
     activityTimeline.append(entry);
   }
+}
+
+function enableActivityPanelDrag() {
+  if (!activityDragHandle) {
+    return;
+  }
+
+  activityDragHandle.addEventListener("pointerdown", startActivityPanelDrag);
+  activityDragHandle.addEventListener("keydown", resetActivityPanelPosition);
+}
+
+function enableActivityPanelResize() {
+  if (!activityResizeHandle) {
+    return;
+  }
+
+  activityResizeHandle.addEventListener("pointerdown", startActivityPanelResize);
+}
+
+function startActivityPanelDrag(event) {
+  if (event.button !== 0) {
+    return;
+  }
+
+  event.preventDefault();
+  const rect = activityPanel.getBoundingClientRect();
+  activityPanelDrag = {
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  activityPanel.classList.add("dragging");
+  activityPanel.style.left = `${rect.left}px`;
+  activityPanel.style.top = `${rect.top}px`;
+  activityPanel.style.right = "auto";
+  activityPanel.style.bottom = "auto";
+  activityDragHandle.setPointerCapture(event.pointerId);
+  activityDragHandle.addEventListener("pointermove", moveActivityPanel);
+  activityDragHandle.addEventListener("pointerup", stopActivityPanelDrag);
+  activityDragHandle.addEventListener("pointercancel", stopActivityPanelDrag);
+}
+
+function moveActivityPanel(event) {
+  if (!activityPanelDrag) {
+    return;
+  }
+
+  const nextLeft = event.clientX - activityPanelDrag.offsetX;
+  const nextTop = event.clientY - activityPanelDrag.offsetY;
+  activityPanel.style.left = `${nextLeft}px`;
+  activityPanel.style.top = `${nextTop}px`;
+}
+
+function stopActivityPanelDrag(event) {
+  activityPanelDrag = null;
+  activityPanel.classList.remove("dragging");
+  if (event?.pointerId !== undefined && activityDragHandle.hasPointerCapture(event.pointerId)) {
+    activityDragHandle.releasePointerCapture(event.pointerId);
+  }
+  activityDragHandle.removeEventListener("pointermove", moveActivityPanel);
+  activityDragHandle.removeEventListener("pointerup", stopActivityPanelDrag);
+  activityDragHandle.removeEventListener("pointercancel", stopActivityPanelDrag);
+}
+
+function resetActivityPanelPosition(event) {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  activityPanel.style.left = "";
+  activityPanel.style.top = "";
+  activityPanel.style.right = "";
+  activityPanel.style.bottom = "";
+  activityPanel.style.width = "";
+  activityPanel.style.height = "";
+  activityPanel.style.maxHeight = "";
+}
+
+function startActivityPanelResize(event) {
+  if (event.button !== 0) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  const rect = activityPanel.getBoundingClientRect();
+  activityPanelResize = {
+    left: rect.left,
+    top: rect.top,
+    startX: event.clientX,
+    startY: event.clientY,
+    startWidth: rect.width,
+    startHeight: rect.height
+  };
+  activityPanel.classList.add("resizing");
+  activityPanel.style.left = `${rect.left}px`;
+  activityPanel.style.top = `${rect.top}px`;
+  activityPanel.style.right = "auto";
+  activityPanel.style.bottom = "auto";
+  activityPanel.style.width = `${rect.width}px`;
+  activityPanel.style.height = `${rect.height}px`;
+  activityPanel.style.maxHeight = "none";
+  activityResizeHandle.setPointerCapture(event.pointerId);
+  activityResizeHandle.addEventListener("pointermove", resizeActivityPanel);
+  activityResizeHandle.addEventListener("pointerup", stopActivityPanelResize);
+  activityResizeHandle.addEventListener("pointercancel", stopActivityPanelResize);
+}
+
+function resizeActivityPanel(event) {
+  if (!activityPanelResize) {
+    return;
+  }
+
+  const nextWidth = Math.max(ACTIVITY_MIN_WIDTH, activityPanelResize.startWidth + event.clientX - activityPanelResize.startX);
+  const nextHeight = Math.max(ACTIVITY_MIN_HEIGHT, activityPanelResize.startHeight + event.clientY - activityPanelResize.startY);
+  activityPanel.style.width = `${nextWidth}px`;
+  activityPanel.style.height = `${nextHeight}px`;
+}
+
+function stopActivityPanelResize(event) {
+  activityPanelResize = null;
+  activityPanel.classList.remove("resizing");
+  if (event?.pointerId !== undefined && activityResizeHandle.hasPointerCapture(event.pointerId)) {
+    activityResizeHandle.releasePointerCapture(event.pointerId);
+  }
+  activityResizeHandle.removeEventListener("pointermove", resizeActivityPanel);
+  activityResizeHandle.removeEventListener("pointerup", stopActivityPanelResize);
+  activityResizeHandle.removeEventListener("pointercancel", stopActivityPanelResize);
+}
+
+function enableSnapBackInteractions() {
+  snapBackInteractions = attachSnapBackInteractions();
 }
 
 function showActiveBridgeNotice(bridge) {
@@ -915,6 +1095,10 @@ function clampPercent(value) {
     return 0;
   }
   return Math.max(0, Math.min(100, number));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function firstFindingKey(findings = []) {
@@ -1335,11 +1519,30 @@ async function loadDeploymentSettings() {
   const runtimeDefaults = labSettingsFromRuntimeConfig(runtimeConfig);
   labDomainValue.textContent = runtimeDefaults.labDomain || "-";
   labDomainValue.title = runtimeDefaults.labDomain || "";
-  vmIpValue.textContent = runtimeDefaults.attackerIp || "-";
-  vmIpValue.title = runtimeDefaults.attackerIp || "";
+  renderVmIpValue();
   dashboardBaseValue.textContent = dashboardHost(runtimeConfig.dashboardBaseUrl || runtimeConfig.dashboardUrl || "-");
   dashboardBaseValue.title = runtimeConfig.dashboardBaseUrl || runtimeConfig.dashboardUrl || "";
   openDashboardButton.disabled = !dashboardDashboardUrl();
+}
+
+function renderVmIpValue() {
+  const runtimeDefaults = runtimeConfig ? labSettingsFromRuntimeConfig(runtimeConfig) : {};
+  const attackerIp = runtimeDefaults.attackerIp || "";
+  const wrapper = vmIpValue.closest(".vmIpSecret");
+  wrapper?.classList.toggle("masked", !vmIpVisible);
+  vmIpValue.textContent = vmIpVisible ? attackerIp || "-" : maskVmIp(attackerIp);
+  vmIpValue.title = vmIpVisible ? attackerIp || "" : "VM IP hidden";
+  toggleVmIpButton.setAttribute("aria-label", vmIpVisible ? "Hide VM IP" : "Reveal VM IP");
+  toggleVmIpButton.title = vmIpVisible ? "Hide VM IP" : "Reveal VM IP";
+  vmIpEyeIcon.innerHTML = vmIpVisible ? OPEN_EYE_ICON : CLOSED_EYE_ICON;
+}
+
+function maskVmIp(value) {
+  if (!value) {
+    return "hidden";
+  }
+
+  return "hidden";
 }
 
 function dashboardDashboardUrl() {

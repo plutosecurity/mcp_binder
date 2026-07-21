@@ -106,6 +106,19 @@ h1 {
   font-weight: 950;
 }
 
+.brandTitle {
+  display: inline-block;
+  border-radius: 8px;
+  padding: 4px 8px 6px;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.brandTitle:hover {
+  background: var(--yellow);
+  box-shadow: 4px 4px 0 var(--line);
+  transform: translate(-2px, -2px);
+}
+
 h2 {
   font-size: 15px;
   line-height: 1.2;
@@ -114,6 +127,7 @@ h2 {
 
 .badge {
   min-width: 92px;
+  min-height: 42px;
   padding: 8px 12px;
   border: 2px solid var(--line);
   border-radius: 999px;
@@ -123,6 +137,11 @@ h2 {
   font-weight: 950;
   text-align: center;
   box-shadow: 3px 3px 0 var(--line);
+}
+
+.statusButton {
+  background: var(--yellow);
+  color: var(--ink);
 }
 
 .badge.running {
@@ -192,7 +211,7 @@ button {
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled):not(.snapBackDragging) {
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 var(--yellow);
 }
@@ -240,24 +259,6 @@ button.secondary:disabled {
   gap: 10px;
 }
 
-.rebindDeployment div {
-  gap: 4px;
-  min-width: 0;
-  padding: 7px 9px;
-}
-
-.rebindDeployment dt {
-  font-size: 9px;
-}
-
-.rebindDeployment dd {
-  font-size: 10px;
-  line-height: 1.18;
-  font-weight: 850;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
 .panelHeader {
   display: flex;
   align-items: center;
@@ -303,14 +304,18 @@ button.secondary:disabled {
   bottom: 18px;
   z-index: 20;
   display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 10px;
   width: min(390px, calc(100vw - 36px));
+  min-width: 280px;
+  min-height: 185px;
   max-height: min(460px, calc(100vh - 36px));
   border: 2px solid var(--line);
   border-radius: 8px;
   padding: 12px;
   background: var(--panel);
   box-shadow: 4px 4px 0 var(--line);
+  overflow: hidden;
 }
 
 .activityPanel.idle {
@@ -322,6 +327,66 @@ button.secondary:disabled {
   justify-content: space-between;
   gap: 12px;
   align-items: start;
+}
+
+.activityDragHandle {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.activityDragHandle:active {
+  cursor: grabbing;
+}
+
+.activityPanel.dragging {
+  opacity: 0.98;
+}
+
+.activityPanel.highlight {
+  animation: activityPulse 700ms ease;
+}
+
+@keyframes activityPulse {
+  0% {
+    box-shadow: 4px 4px 0 var(--line);
+  }
+  38% {
+    box-shadow: 0 0 0 5px rgba(243, 199, 53, 0.55), 4px 4px 0 var(--line);
+    transform: translate(-2px, -2px);
+  }
+  100% {
+    box-shadow: 4px 4px 0 var(--line);
+    transform: translate(0, 0);
+  }
+}
+
+.activityPanel.resizing {
+  opacity: 0.98;
+}
+
+.activityResizeHandle {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 19px;
+  height: 19px;
+  border-right: 3px solid var(--line);
+  border-bottom: 3px solid var(--line);
+  border-radius: 3px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.activityResizeHandle::before {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgba(20, 18, 15, 0.55);
+  border-bottom: 2px solid rgba(20, 18, 15, 0.55);
 }
 
 .activityMeter {
@@ -463,7 +528,8 @@ button.secondary:disabled {
 .activityTimeline {
   display: grid;
   gap: 6px;
-  max-height: 220px;
+  max-height: none;
+  min-height: 0;
   margin: 0;
   padding: 0;
   overflow: auto;
@@ -502,16 +568,37 @@ button.secondary:disabled {
   background: var(--wash);
 }
 
+.snapBackInteractive {
+  will-change: transform;
+}
+
+.snapBackInteractive:not(button) {
+  cursor: grab;
+}
+
+.snapBackInteractive.snapBackDragging {
+  cursor: grabbing;
+  transform: translate(var(--snap-x, 0px), var(--snap-y, 0px)) rotate(var(--snap-rotate, 0deg));
+  transition: none;
+  z-index: 2;
+}
+
+.snapBackInteractive.snapBackReturning {
+  transform: translate(0, 0) rotate(0deg);
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .summary dt {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .summary dd {
   margin: 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1.12;
   font-weight: 950;
   overflow-wrap: anywhere;
 }
@@ -523,20 +610,69 @@ button.secondary:disabled {
 
 .summary.rebindDeployment div {
   gap: 4px;
-  padding: 7px 10px;
+  padding: 8px 11px;
 }
 
 .summary.rebindDeployment dt {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .summary.rebindDeployment dd {
-  font-size: 11px;
-  line-height: 1.15;
-  font-weight: 900;
+  font-size: 16px;
+  line-height: 1.12;
+  font-weight: 950;
   white-space: nowrap;
   overflow-wrap: normal;
   word-break: normal;
+}
+
+.summary.rebindDeployment .vmIpSecret {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vmIpSecret span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vmIpSecret.masked span {
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.secretToggle {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0;
+  background: var(--yellow);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.eyeIconShell,
+.eyeIconSvg {
+  display: block;
+  width: 21px;
+  height: 21px;
+}
+
+.eyeIconLine {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.eyeIconPupil {
+  fill: currentColor;
 }
 
 .findings {
@@ -629,21 +765,21 @@ button.secondary:disabled {
 .finding strong {
   display: block;
   margin-bottom: 4px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 950;
   overflow-wrap: anywhere;
 }
 
 .finding .port {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 950;
 }
 
 .finding p {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -665,7 +801,7 @@ button.secondary:disabled {
   min-height: 30px;
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .secondaryMini {
@@ -682,7 +818,7 @@ button.secondary:disabled {
   border: 2px solid var(--line);
   border-radius: 999px;
   padding: 3px 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 950;
 }
 
@@ -737,7 +873,7 @@ button.secondary:disabled {
 .detailSection summary {
   margin: 0;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 950;
   letter-spacing: 0;
 }
@@ -760,7 +896,7 @@ button.secondary:disabled {
 
 .kv dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
 }
 
@@ -768,7 +904,7 @@ button.secondary:disabled {
   min-width: 0;
   margin: 0;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 
@@ -804,7 +940,7 @@ button.secondary:disabled {
 }
 
 .toolItem strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 950;
   overflow-wrap: anywhere;
 }
@@ -812,7 +948,7 @@ button.secondary:disabled {
 .toolItem p {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -832,14 +968,14 @@ button.secondary:disabled {
 }
 
 .evidenceItem strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 950;
 }
 
 .evidenceItem p {
   margin: 0;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }

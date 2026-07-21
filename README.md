@@ -2,6 +2,15 @@
 
 # MCP Binder
 
+<p align="center">
+  <a href="LICENSE"><img alt="Apache-2.0 license" src="https://img.shields.io/badge/license-Apache--2.0-55b86b?style=flat-square"></a>
+  <img alt="MCP security" src="https://img.shields.io/badge/MCP-security-14120f?style=flat-square">
+  <img alt="DNS rebinding lab" src="https://img.shields.io/badge/DNS-rebinding%20lab-e35347?style=flat-square">
+  <img alt="Chrome extension" src="https://img.shields.io/badge/Chrome-extension-f3c735?style=flat-square">
+  <img alt="Singularity of Origin" src="https://img.shields.io/badge/engine-Singularity-5d8fd8?style=flat-square">
+  <img alt="Node.js runtime" src="https://img.shields.io/badge/runtime-Node.js-55b86b?style=flat-square">
+</p>
+
 MCP Binder turns MCP DNS-rebinding research into a repeatable lab workflow. It gives security practitioners a fast path from a clean VM and delegated DNS zone to a working browser-driven MCP attack lab, without rebuilding infrastructure for every target.
 
 Use it to find exposed local MCP servers, reproduce DNS-rebinding impact, validate whether a fix actually changes browser-reachable behavior, and generate a controlled operator workflow for internal assessments, product security reviews, and disclosure evidence.

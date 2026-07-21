@@ -53,6 +53,28 @@ This command deploys the VM runtime over SSH and packs the Chrome extension into
 
 If this step fails, use [Troubleshooting](troubleshooting.md) to test the config, DNS, SSH, VM services, and extension pack separately.
 
+## Pack Extension Only
+
+Use this when the VM and DNS infrastructure already exist and you only need a Chrome extension build for a specific deployment config:
+
+```sh
+node scripts/framework-cli.js extension pack \
+  --config deployment.framework-config.json \
+  --out dist/mcp-binder-extension
+```
+
+Load `dist/mcp-binder-extension` from `chrome://extensions`.
+
+The packed extension includes the dashboard URL, rebinding domain, VM IP, Chrome host permissions, and runtime bridge settings derived from `deployment.framework-config.json`. It does not deploy or change the VM.
+
+The command also prints the dashboard token file path. The default is:
+
+```text
+dist/mcp-binder-dashboard-token
+```
+
+Use the older `pack-extension` alias only for compatibility. The supported command is `extension pack`.
+
 ## Choosing Singularity Ports
 
 The scanner port range and the Singularity HTTP ports are different controls.

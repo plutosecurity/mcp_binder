@@ -621,7 +621,7 @@ async function buildOnlineChecks(config) {
 
 async function resolveCheck(name, hostname) {
   try {
-    const records = await withTimeout(dns.lookup(hostname, { family: 4, all: true }), 2500, "DNS lookup timed out");
+    const records = await retryDnsLookup(() => withTimeout(dns.lookup(hostname, { family: 4, all: true }), 2500, "DNS lookup timed out"));
     const addresses = records.map((record) => record.address);
     return {
       name,
@@ -850,7 +850,7 @@ async function verifyDns(config, options) {
 
 async function resolveARecordCheck(name, hostname, expected, resolver = dns, zone = "") {
   try {
-    const addresses = await withTimeout(resolver.resolve4(hostname), 2500, "A lookup timed out");
+    const addresses = await retryDnsLookup(() => withTimeout(resolver.resolve4(hostname), 2500, "A lookup timed out"));
     return {
       name,
       status: addresses.includes(expected) ? "passed" : "failed",
@@ -873,7 +873,7 @@ async function resolveARecordCheck(name, hostname, expected, resolver = dns, zon
 
 async function resolveNsCheck(name, hostname, expected, resolver = dns, zone = "") {
   try {
-    const records = await withTimeout(resolver.resolveNs(hostname), 2500, "NS lookup timed out");
+    const records = await retryDnsLookup(() => withTimeout(resolver.resolveNs(hostname), 2500, "NS lookup timed out"));
     const normalizedExpected = normalizeDnsName(expected);
     const normalizedRecords = records.map(normalizeDnsName);
     return {
@@ -897,11 +897,11 @@ async function resolveNsCheck(name, hostname, expected, resolver = dns, zone = "
 }
 
 async function authoritativeResolverForZone(zone) {
-  const nameservers = await withTimeout(dns.resolveNs(zone), 2500, `NS lookup timed out for ${zone}`);
+  const nameservers = await retryDnsLookup(() => withTimeout(dns.resolveNs(zone), 2500, `NS lookup timed out for ${zone}`));
   const addresses = [];
   for (const nameserver of nameservers) {
     try {
-      addresses.push(...await withTimeout(dns.resolve4(nameserver), 2500, `A lookup timed out for ${nameserver}`));
+      addresses.push(...await retryDnsLookup(() => withTimeout(dns.resolve4(nameserver), 2500, `A lookup timed out for ${nameserver}`)));
     } catch {
       // Keep trying the remaining authoritative nameservers.
     }
@@ -1683,6 +1683,31 @@ async function withTimeout(promise, ms, message) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function retryDnsLookup(operation, options = {}) {
+  const attempts = Number(options.attempts || 3);
+  const delayMs = Number(options.delayMs || 450);
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) {
+        break;
+      }
+      await sleep(delayMs * attempt);
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`${message} after ${attempts} attempts`);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getOption(argv, option) {

@@ -162,6 +162,7 @@ function assertEqual(actual, expected, message) {
 }
 
 function validateFrameworkCli() {
+  const frameworkSource = fs.readFileSync("scripts/framework-cli.js", "utf8");
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-binder-framework-"));
   const extensionConfigPath = path.join(tempDir, "extension-build-config.json");
   const packOutputDir = path.join(tempDir, "packed-extension");
@@ -342,6 +343,8 @@ function validateFrameworkCli() {
   ]);
   assert(!dnsVerifyText.includes("Help:"), "dns verify output does not print helper link noise");
   assert(dnsVerifyText.endsWith("\n"), "dns verify human output ends with newline");
+  assert(frameworkSource.includes("retryDnsLookup"), "dns verify retries transient DNS resolver failures");
+  assert(frameworkSource.includes("retryDnsLookup(() => withTimeout(dns.resolveNs(zone)"), "dns verify retries parent-zone NS lookup");
 
   const attackerDeployDryRun = runCli(["attacker", "deploy", "--config", "examples/framework/route53-example.framework-config.json"]);
   assert(attackerDeployDryRun.ok, "framework CLI attacker deploy dry-run returns ok");

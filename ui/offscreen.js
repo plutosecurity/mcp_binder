@@ -77,7 +77,7 @@ async function startBridge(payload = {}) {
 
   const dashboard = remoteDashboardProxy(dashboardBaseUrl, runtimeConfig.ingestToken);
   const descriptor = payload.descriptor;
-  const sessionId = `bridge-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 8)}`;
+  const sessionId = `bridge-${Date.now().toString(16)}-${secureHex(6)}`;
   const controller = new AbortController();
   activeRun = { sessionId, descriptor, mcpName: payload.mcpName || mcpNameFromFinding(payload.finding), controller, clientRunId: payload.clientRunId };
 
@@ -268,6 +268,12 @@ function mcpNameFromFinding(finding) {
     finding?.fingerprint?.serverName,
     finding?.fingerprint?.serverVersion
   ].filter(Boolean).join(" ") || finding?.baseUrl || `${finding?.target || "local"}:${finding?.port || "unknown"}`;
+}
+
+function secureHex(length) {
+  const bytes = new Uint8Array(Math.ceil(length / 2));
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
 }
 
 function remoteDashboardProxy(baseUrl, ingestToken = "") {

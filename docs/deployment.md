@@ -1,6 +1,6 @@
 # Deployment
 
-This is the normal path for a researcher setting up a fresh MCP Binder lab on a VM they control.
+This page is for building a fresh MCP Binder lab on a VM you control.
 
 ## Inputs
 
@@ -50,6 +50,23 @@ node scripts/framework-cli.js bootstrap \
 ```
 
 This command deploys the VM runtime over SSH and packs the Chrome extension into `dist/mcp-binder-lab/extension`.
+
+Healthy output ends with the lab path, token path, DNS records that must exist, and the packed extension directory:
+
+```text
+MCP Binder lab built
+Output: dist/mcp-binder-lab
+Dashboard token: dist/mcp-binder-dashboard-token
+
+Steps
+  dns.prerequisite
+    dashboard.example.com. 60 IN A 203.0.113.10
+    ns1.rebind.example.com. 60 IN A 203.0.113.10
+    rebind.example.com. 60 IN NS ns1.rebind.example.com.
+  vm.deploy
+  extension.pack
+    output: dist/mcp-binder-lab/extension
+```
 
 If this step fails, use [Troubleshooting](troubleshooting.md) to test the config, DNS, SSH, VM services, and extension pack separately.
 
@@ -143,6 +160,8 @@ The VM installer pins the DNS-rebinding runtime inputs used during setup:
 This keeps fresh VM setup reproducible and prevents accidental drift to a changed upstream runtime.
 
 ## Load The Extension
+
+Use the packed extension from the build output, not the repository root.
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.

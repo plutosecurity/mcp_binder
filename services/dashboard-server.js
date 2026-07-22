@@ -1975,13 +1975,18 @@ function writeSavedRequests(items) {
 function requestScope(s) {
   return s ? genericTargetName(s) : "Captured MCP";
 }
+function secureHex(length) {
+  const bytes = new Uint8Array(Math.ceil(length / 2));
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
+}
 function saveRequest(req, s, source) {
   const clean = cleanRequest(req);
   const scope = requestScope(s);
   const fingerprint = [scope, clean.kind, clean.tool, pretty(requestBody(clean))].join("|");
   const next = savedRequests().filter(item => item.fingerprint !== fingerprint);
   next.unshift({
-    id: "r-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2, 8),
+    id: "r-" + Date.now().toString(36) + "-" + secureHex(6),
     savedAt: new Date().toISOString(),
     scope,
     source: source || "operator",

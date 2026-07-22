@@ -11,9 +11,9 @@
   <img alt="Node.js runtime" src="https://img.shields.io/badge/runtime-Node.js-55b86b?style=flat-square">
 </p>
 
-MCP Binder turns MCP DNS-rebinding research into a repeatable lab workflow. It gives security practitioners a fast path from a clean VM and delegated DNS zone to a working browser-driven MCP attack lab, without rebuilding infrastructure for every target.
+MCP Binder turns local MCP DNS-rebinding bugs into a live, repeatable lab.
 
-Use it to find exposed local MCP servers, reproduce DNS-rebinding impact, validate whether a fix actually changes browser-reachable behavior, and generate a controlled operator workflow for internal assessments, product security reviews, and disclosure evidence.
+Use it to scan local MCP servers from Chrome, launch a DNS rebinding attack through your own VM and DNS zone, capture the MCP session, and operate it from a token-protected dashboard. The same workflow supports vulnerability research, internal product security reviews, disclosure demos, and defensive regression testing.
 
 ![MCP Binder demo](docs/assets/demo.gif)
 
@@ -34,6 +34,22 @@ MCP Binder exists so researchers and defenders can reproduce this class of vulne
 | Singularity runtime | Uses [Singularity of Origin](https://github.com/nccgroup/singularity) as the DNS-rebinding engine. |
 | Scanner extension | Finds browser-reachable MCP services, then launches the configured DNS rebinding attack against the selected MCP server. |
 | Dashboard and operator console | Tracks captured sessions, shows bridge telemetry, and lets the researcher queue MCP JSON-RPC requests. |
+
+## Setup Contract
+
+You provide:
+
+- a Linux VM reachable over SSH;
+- DNS records that point a dashboard hostname and delegated rebinding zone to that VM;
+- inbound rules for SSH, dashboard HTTP, DNS, and the selected rebinding ports.
+
+MCP Binder provides:
+
+- an SSH-based VM installer;
+- a pinned Singularity runtime;
+- the dashboard service and rebinding payloads;
+- a deployment-specific Chrome extension build;
+- dashboard and ingest token material for that lab.
 
 ## Workflow
 
@@ -130,6 +146,7 @@ For the full setup flow, read [docs/deployment.md](docs/deployment.md). For conf
 | [Troubleshooting](docs/troubleshooting.md) | Test config, DNS, SSH, VM services, dashboard, and extension packing one module at a time. |
 | [Security Hardening](docs/security-hardening.md) | Implemented controls, HTTP dashboard risk, TLS guidance, and residual hardening notes. |
 | [Security Policy](SECURITY.md) | How to report vulnerabilities in MCP Binder itself. |
+| [Testing](docs/testing.md) | Mock MCP demo mode and local regression checks. |
 
 ## License
 

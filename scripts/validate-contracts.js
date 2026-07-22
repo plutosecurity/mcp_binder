@@ -167,8 +167,35 @@ function assertEqual(actual, expected, message) {
   }
 }
 
+function snapshotFile(file) {
+  try {
+    const stat = fs.statSync(file);
+    return {
+      exists: true,
+      size: stat.size,
+      mtimeMs: stat.mtimeMs
+    };
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return { exists: false };
+    }
+    throw error;
+  }
+}
+
+function assertFileUnchanged(file, before, message) {
+  const after = snapshotFile(file);
+  assertEqual(after.exists, before.exists, message);
+  if (before.exists) {
+    assertEqual(after.size, before.size, message);
+    assertEqual(after.mtimeMs, before.mtimeMs, message);
+  }
+}
+
 function validateFrameworkCli() {
   const frameworkSource = fs.readFileSync("scripts/framework-cli.js", "utf8");
+  const defaultIngestTokenFile = path.join("dist", "mcp-binder-ingest-token");
+  const defaultIngestTokenSnapshot = snapshotFile(defaultIngestTokenFile);
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-binder-framework-"));
   const extensionConfigPath = path.join(tempDir, "extension-build-config.json");
   const packOutputDir = path.join(tempDir, "packed-extension");
@@ -506,7 +533,7 @@ function validateFrameworkCli() {
   assert(bootstrapOutput.steps.some((step) => step.name === "dns.plan"), "bootstrap reports dns step");
   assert(bootstrapOutput.steps.some((step) => step.name === "vm.deploy"), "bootstrap reports VM deploy step");
   assert(bootstrapOutput.steps.some((step) => step.name === "extension.pack"), "bootstrap reports extension pack step");
-  assert(!fs.existsSync(path.join("dist", "mcp-binder-ingest-token")), "validation does not create default dist ingest token");
+  assertFileUnchanged(defaultIngestTokenFile, defaultIngestTokenSnapshot, "validation does not create or modify default dist ingest token");
 
   const targetProfileOutput = runCli(["target-profile", "validate", "examples/framework/tapo-root-target.json"]);
   assert(targetProfileOutput.ok, "target-profile validate returns ok for valid profiles");
@@ -685,6 +712,16 @@ function validateFrameworkCli() {
   assert(dashboardServerSource.includes(".tool-card"), "ops page snap-back targets tool cards");
   assert(dashboardServerSource.includes(".ready-step"), "ops page snap-back targets readiness cards");
   assert(dashboardServerSource.includes(".task-grid > *"), "ops page snap-back targets generated tool console tasks");
+
+  const secureRandomSources = [
+    ["ui/offscreen.js", offscreenSource],
+    ["src/rebind-url.js", fs.readFileSync("src/rebind-url.js", "utf8")],
+    ["src/rebind-bridge-core.js", fs.readFileSync("src/rebind-bridge-core.js", "utf8")],
+    ["services/dashboard-server.js", dashboardServerSource]
+  ];
+  for (const [file, source] of secureRandomSources) {
+    assert(!source.includes("Math.random"), `${file} must not use Math.random for generated ids`);
+  }
 }
 
 function runCli(args) {

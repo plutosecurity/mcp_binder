@@ -2,6 +2,8 @@
 
 This page covers the live workflow after the VM is deployed and the packed Chrome extension is loaded.
 
+Use [Demo Mode](testing.md#demo-mode) when recording, presenting, or validating the flow without depending on a third-party MCP server.
+
 The operating loop is:
 
 ```text
@@ -20,6 +22,8 @@ Confirm these pieces are ready:
 | Rebinding ports | The selected MCP port is included in `singularity.http_ports` and allowed by the VM inbound rules. |
 
 If one of these fails, use [Troubleshooting](troubleshooting.md) before debugging the browser flow.
+
+For a controlled demo, start the mock MCP lab from [Testing](testing.md#demo-mode), scan `localtest.me`, and select a mock MCP port that is exposed by the deployed Singularity runtime.
 
 ## 1. Run The Scanner
 

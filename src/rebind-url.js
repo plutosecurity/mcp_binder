@@ -255,7 +255,13 @@ function ipToHex(ip) {
 }
 
 function randomLabel() {
-  return `${Date.now().toString()}${Math.random().toString(16).slice(2, 10)}`;
+  return `${Date.now().toString()}${secureHex(8)}`;
+}
+
+function secureHex(length) {
+  const bytes = new Uint8Array(Math.ceil(length / 2));
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
 }
 
 function stringOrDefault(value, fallback) {

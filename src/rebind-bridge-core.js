@@ -978,5 +978,13 @@ function requireDashboard(dashboard) {
 
 function cryptoRandom() {
   const cryptoApi = globalThis.crypto;
-  return cryptoApi?.randomUUID ? cryptoApi.randomUUID() : `${Date.now()}${Math.random().toString(16).slice(2)}`;
+  if (cryptoApi?.randomUUID) {
+    return cryptoApi.randomUUID();
+  }
+  if (cryptoApi?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    cryptoApi.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  throw new Error("Web Crypto is required for bridge id generation.");
 }

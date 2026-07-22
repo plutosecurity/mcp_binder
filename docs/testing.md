@@ -1,6 +1,46 @@
 # Testing
 
-This page is for local development and regression testing. It is not required for a normal deployment.
+This page is for local development, regression testing, and demo fallback. It is not required for a normal deployment.
+
+## Demo Mode
+
+Use demo mode when you need a reliable local MCP target for a recording, conference booth, or regression check. It avoids relying on a third-party MCP server while still exercising the scanner, target selection, DNS rebinding launch, dashboard capture, and `/ops` workflow.
+
+Start the mock MCP lab:
+
+```sh
+npm run mock:lab
+```
+
+Then use the extension scanner:
+
+```text
+Target: localtest.me
+Ports: 8080-8092
+```
+
+Expected flow:
+
+1. The scanner finds several mock MCP services.
+2. Select a finding whose port is also exposed by `singularity.http_ports`.
+3. Click **DNS Rebind**.
+4. Open the dashboard when the finding shows **Open Dashboard**.
+5. Queue `tools/list` from `/ops` and confirm a result returns.
+
+If `8080-8092` is busy:
+
+```sh
+MOCK_MCP_BASE_PORT=18080 npm run mock:lab
+```
+
+Then scan:
+
+```text
+Target: localtest.me
+Ports: 18080-18092
+```
+
+For a full DNS rebinding demo, the selected mock MCP port must also be present in `singularity.http_ports` and allowed by the VM inbound rules. If you only need scanner footage, the deployed VM is not required.
 
 ## Source Build
 
@@ -25,33 +65,7 @@ http://dashboard.example.com/*
 
 ## Mock MCP Lab
 
-Start the local mock lab:
-
-```sh
-npm run mock:lab
-```
-
-Then scan:
-
-```text
-target: localtest.me
-ports: 8080-8092
-```
-
-If `8080-8092` is busy:
-
-```sh
-MOCK_MCP_BASE_PORT=18080 npm run mock:lab
-```
-
-Then scan:
-
-```text
-target: localtest.me
-ports: 18080-18092
-```
-
-The mock lab includes Streamable HTTP, SSE-wrapped JSON-RPC, legacy SSE, strict Origin behavior, protocol fallback, session-based MCP, auth-required MCP, broken MCP, authenticated-context exposure, and root-path Streamable MCP.
+The mock lab is the controlled target set used by Demo Mode. It includes Streamable HTTP, SSE-wrapped JSON-RPC, legacy SSE, strict Origin behavior, protocol fallback, session-based MCP, auth-required MCP, broken MCP, authenticated-context exposure, and root-path Streamable MCP.
 
 ## Validation
 

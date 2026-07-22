@@ -77,7 +77,8 @@ async function startBridge(payload = {}) {
 
   const dashboard = remoteDashboardProxy(dashboardBaseUrl, runtimeConfig.ingestToken);
   const descriptor = payload.descriptor;
-  const sessionId = `bridge-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 8)}`;
+  const randomPart = crypto.getRandomValues(new Uint32Array(1))[0].toString(16).padStart(8, "0").slice(0, 6);
+  const sessionId = `bridge-${Date.now().toString(16)}-${randomPart}`;
   const controller = new AbortController();
   activeRun = { sessionId, descriptor, mcpName: payload.mcpName || mcpNameFromFinding(payload.finding), controller, clientRunId: payload.clientRunId };
 

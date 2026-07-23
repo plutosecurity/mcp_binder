@@ -659,6 +659,10 @@ function validateFrameworkCli() {
   assert(interactionsSource.includes("addEventListener(\"blur\""), "shared snap-back helper cancels stuck drags on window blur");
   assert(interactionsSource.includes("SNAP_BACK_DRAG_THRESHOLD"), "shared snap-back helper uses a click-safe movement threshold");
   assert(!interactionsSource.includes("SNAP_BACK_MAX_OFFSET"), "shared snap-back dragging is not artificially capped");
+  assert(interactionsSource.includes("selectableContentSelector"), "shared snap-back helper excludes selectable/editor content");
+  assert(interactionsSource.includes("element.querySelector?.(selectableContentSelector())"), "shared snap-back helper excludes containers with selectable/editor descendants");
+  assert(interactionsSource.includes("element.closest(\".workspace-grid\")"), "shared snap-back helper excludes operation workspaces");
+  assert(interactionsSource.includes("element.closest(\".quick-action\")"), "shared snap-back helper excludes quick action tool blocks");
   assert(!dashboardSource.includes("maxLeft"), "activity panel dragging is not capped by viewport left bounds");
   assert(!dashboardSource.includes("maxWidth"), "activity panel resizing is not capped by viewport width");
   const dashboardCss = fs.readFileSync("ui/dashboard.css", "utf8");
@@ -682,6 +686,9 @@ function validateFrameworkCli() {
   assert(dashboardCss.includes("cursor: not-allowed"), "dashboard disabled buttons do not show a busy cursor");
   assert(dashboardCss.includes(".blockedScan"), "dashboard styles blocked scan policy state");
   assert(dashboardCss.includes(".permissionList"), "dashboard styles allowed permission chips");
+  assert(dashboardHtml.includes("cleanScansButton"), "dashboard exposes a clean-scan control");
+  assert(dashboardSource.includes("async function cleanScans()"), "dashboard implements clean-scan state reset");
+  assert(dashboardSource.includes("Local scan results were cleared"), "dashboard clean-scan action reports operator feedback");
   assert(!dashboardSource.includes("rebindUrlInput"), "dashboard does not keep stale bridge URL state");
   assert(dashboardSource.includes("labSettingsFromRuntimeConfig(runtimeConfig)"), "dashboard derives rebind settings from packed runtime config");
   assert(dashboardSource.includes("dashboardLastResult"), "dashboard persists scan results across dashboard refreshes");
@@ -700,18 +707,22 @@ function validateFrameworkCli() {
   assert(dashboardServerSource.includes("SNAP_BACK_INTERACTION_SCRIPT"), "server dashboard ships shared snap-back JS");
   assert(dashboardServerSource.includes("attachServerSnapBackInteractions"), "server dashboard wires snap-back interactions");
   assert(dashboardServerSource.includes("contextmenu"), "server snap-back helper cancels stuck drags on context menu");
+  assert(dashboardServerSource.includes("selectableContentSelector"), "server snap-back helper excludes selectable/editor content");
+  assert(dashboardServerSource.includes("element.querySelector?.(selectableContentSelector())"), "server snap-back helper excludes containers with selectable/editor descendants");
   assert(dashboardServerSource.includes("showTokenSavedHint"), "server dashboard can show contextual token feedback");
   assert(dashboardServerSource.includes("Token saved"), "operator dashboard save token action shows token saved feedback");
   assert(dashboardServerSource.includes(".tokenSavedHint"), "server dashboard styles contextual token feedback");
   assert(dashboardServerSource.includes("@keyframes tokenSavedFloat"), "server token feedback fades near the save button");
   assert(dashboardServerSource.includes(".serverBrandTitle"), "server dashboard titles have draggable highlight treatment");
   assert(dashboardServerSource.includes(".metric"), "operator dashboard snap-back targets attack surface metrics");
-  assert(dashboardServerSource.includes(".selectable"), "operator dashboard snap-back targets selectable rows");
+  assert(!dashboardServerSource.includes("\".panel\","), "server snap-back helper does not target full panels");
+  assert(!dashboardServerSource.includes("\".candidate\","), "server snap-back helper does not target MCP session cards");
+  assert(!dashboardServerSource.includes("\".result-card\","), "server snap-back helper does not target result cards");
+  assert(!dashboardServerSource.includes("\".tool-card\","), "server snap-back helper does not target tool inventory cards");
+  assert(!dashboardServerSource.includes("\".quick-action\","), "server snap-back helper does not target quick action tool blocks");
   assert(dashboardServerSource.includes(".summary-card"), "ops page snap-back targets summary cards");
-  assert(dashboardServerSource.includes(".result-card"), "ops page snap-back targets result cards");
-  assert(dashboardServerSource.includes(".tool-card"), "ops page snap-back targets tool cards");
   assert(dashboardServerSource.includes(".ready-step"), "ops page snap-back targets readiness cards");
-  assert(dashboardServerSource.includes(".task-grid > *"), "ops page snap-back targets generated tool console tasks");
+  assert(dashboardServerSource.includes("element.closest(\".workspace-grid\")"), "server snap-back helper excludes operation workspaces");
 
   const secureRandomSources = [
     ["ui/offscreen.js", offscreenSource],

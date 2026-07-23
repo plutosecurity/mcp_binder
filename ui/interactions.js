@@ -153,13 +153,27 @@ function defaultSnapBackExclude(element) {
   return Boolean(
     element.closest(".activityPanel")
     || element.closest(".operatorNotice")
-    || element.closest("select")
-    || element.closest("input")
-    || element.closest("textarea")
-    || element.closest("pre")
-    || element.closest("code")
+    || element.closest(".result-card")
+    || element.closest(".tool-card")
+    || element.closest(".quick-action")
+    || element.closest(".workspace-grid")
+    || element.closest(selectableContentSelector())
+    || element.querySelector?.(selectableContentSelector())
     || element.closest("[data-no-snap]")
   );
+}
+
+function selectableContentSelector() {
+  return [
+    "select",
+    "input",
+    "textarea",
+    "pre",
+    "code",
+    "[contenteditable='true']",
+    "[data-selectable]",
+    "[data-no-snap]"
+  ].join(",");
 }
 
 function clamp(value, min, max) {

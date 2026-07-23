@@ -91,41 +91,45 @@ function attachServerSnapBackInteractions() {
     ".status",
     ".brand",
     ".serverBrandTitle",
-    ".panel",
     ".card",
     ".metric",
-    ".selectable",
-    ".row",
     ".muted-box",
     ".auth",
     "details.panel > summary",
     ".summary-card",
-    ".result-card",
-    ".tool-card",
-    ".candidate",
     ".ready-step",
-    ".sessionItem",
-    ".quick-action",
     ".saved-request",
     ".readiness > *",
     ".metric-grid > *",
     ".summary-grid > *",
-    ".tool-grid > *",
-    ".task-grid > *",
-    ".finding-list li",
     ".operatorDialog"
   ].join(",");
   let active = null;
 
+  function selectableContentSelector() {
+    return [
+      "input",
+      "select",
+      "textarea",
+      "pre",
+      "code",
+      "[contenteditable='true']",
+      "[data-selectable]",
+      "[data-no-snap]"
+    ].join(",");
+  }
+
   function excluded(element) {
     return Boolean(
-      element.closest("input")
-      || element.closest("select")
-      || element.closest("textarea")
-      || element.closest("pre")
-      || element.closest("code")
+      element.closest(selectableContentSelector())
+      || element.querySelector?.(selectableContentSelector())
       || element.closest(".main-resizer")
       || element.closest(".workspace-resizer")
+      || element.closest(".candidate")
+      || element.closest(".result-card")
+      || element.closest(".tool-card")
+      || element.closest(".quick-action")
+      || element.closest(".workspace-grid")
       || element.closest("[data-no-snap]")
     );
   }

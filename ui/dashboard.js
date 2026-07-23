@@ -8,6 +8,7 @@ import { scanTargetPermissionCandidates, validateScanTargetAccess } from "../src
 const form = document.querySelector("#scanForm");
 const scanButton = document.querySelector("#scanButton");
 const cancelButton = document.querySelector("#cancelButton");
+const cleanScansButton = document.querySelector("#cleanScansButton");
 const exportButton = document.querySelector("#exportButton");
 const sortSelect = document.querySelector("#sortSelect");
 const statusBadge = document.querySelector("#statusBadge");
@@ -106,6 +107,7 @@ form.addEventListener("submit", async (event) => {
   resetActivity("Scanning", "running", "Preparing local port scan.", 0);
   scanButton.disabled = true;
   cancelButton.disabled = false;
+  cleanScansButton.disabled = true;
   exportButton.disabled = true;
 
   try {
@@ -155,6 +157,7 @@ form.addEventListener("submit", async (event) => {
   } finally {
     scanButton.disabled = false;
     cancelButton.disabled = true;
+    cleanScansButton.disabled = !lastResult;
     exportButton.disabled = !lastResult;
   }
 });
@@ -171,6 +174,8 @@ sortSelect.addEventListener("change", () => {
   renderFindings();
   persistDashboardState();
 });
+
+cleanScansButton.addEventListener("click", cleanScans);
 
 exportButton.addEventListener("click", () => {
   if (!lastResult) {
@@ -483,6 +488,7 @@ function renderResult() {
   mcpValue.textContent = String(result.summary?.mcpDetected ?? "-");
   findingsValue.textContent = String(result.summary?.findings ?? "-");
   authValue.textContent = String(result.summary?.authRequired ?? "-");
+  cleanScansButton.disabled = false;
   exportButton.disabled = false;
   renderFindings();
 }
@@ -631,6 +637,7 @@ function renderError(error) {
   mcpValue.textContent = "-";
   findingsValue.textContent = "-";
   authValue.textContent = "-";
+  cleanScansButton.disabled = true;
   exportButton.disabled = true;
   findingsList.classList.add("empty");
   findingsList.textContent = error instanceof Error ? error.message : String(error);
@@ -685,6 +692,7 @@ function renderBlockedScan(error) {
   mcpValue.textContent = "-";
   findingsValue.textContent = "-";
   authValue.textContent = "-";
+  cleanScansButton.disabled = true;
   exportButton.disabled = true;
   detailPanel.classList.add("empty");
   detailPanel.textContent = "Select a finding to inspect raw evidence.";
@@ -722,6 +730,48 @@ function renderBlockedScan(error) {
   findingsList.append(card);
   snapBackInteractions?.refresh(findingsList);
   clearPersistedDashboardState();
+}
+
+async function cleanScans() {
+  if (!lastResult) {
+    return;
+  }
+
+  lastResult = null;
+  selectedFindingKey = null;
+  stageValue.textContent = "-";
+  scannedValue.textContent = "-";
+  responsiveValue.textContent = "-";
+  mcpValue.textContent = "-";
+  findingsValue.textContent = "-";
+  authValue.textContent = "-";
+  cleanScansButton.disabled = true;
+  exportButton.disabled = true;
+  findingsList.classList.add("empty");
+  findingsList.textContent = "No scan results yet.";
+  renderDetail(null);
+  renderRebindControls();
+  await clearPersistedDashboardState();
+
+  if (activeBridge) {
+    showOperatorNotice(
+      "Scans cleaned",
+      "Local scan results were cleared. The current DNS rebind bridge is still running.",
+      "done"
+    );
+    updateActivity({
+      title: "Scans cleaned",
+      state: "done",
+      detail: "Local scan results were cleared. Active DNS rebind state was left running.",
+      percent: 100,
+      item: "Local scan results cleared."
+    });
+    return;
+  }
+
+  setStatus("Idle", "idle");
+  resetActivity("Scans cleaned", "idle", "Local scan results were cleared.", 100);
+  showOperatorNotice("Scans cleaned", "Local scan results were cleared.", "done");
 }
 
 function setStatus(label, state) {
